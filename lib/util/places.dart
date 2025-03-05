@@ -72,12 +72,13 @@ class Reply {
   final String authorAvatar;
   final String content;
   final DateTime createdAt;
-  final List<String>? images;
-  final String? audioUrl;
   final String? codeSnippet;
   final String? codeLanguage;
+  final List<String>? images;
+  final String? audioUrl;
   final int likes;
   final bool isAccepted;
+  final List<SubReply> subReplies;
 
   const Reply({
     required this.id,
@@ -85,12 +86,41 @@ class Reply {
     required this.authorAvatar,
     required this.content,
     required this.createdAt,
-    this.images,
-    this.audioUrl,
     this.codeSnippet,
     this.codeLanguage,
+    this.images,
+    this.audioUrl,
     required this.likes,
     required this.isAccepted,
+    this.subReplies = const [],
+  });
+}
+
+class SubReply {
+  final String id;
+  final String authorName;
+  final String authorAvatar;
+  final String content;
+  final DateTime createdAt;
+  final String? codeSnippet;
+  final String? codeLanguage;
+  final List<String>? images;
+  final String? audioUrl;
+  final int likes;
+  final String replyToName;
+
+  const SubReply({
+    required this.id,
+    required this.authorName,
+    required this.authorAvatar,
+    required this.content,
+    required this.createdAt,
+    this.codeSnippet,
+    this.codeLanguage,
+    this.images,
+    this.audioUrl,
+    required this.likes,
+    required this.replyToName,
   });
 }
 
