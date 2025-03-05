@@ -41,6 +41,10 @@ class Problem {
   final int solvedCount;
   final double successRate;
   final List<String> relatedTopics;
+  final String? author;
+  final String? authorAvatar;
+  final int? likes;
+  final int? bookmarks;
 
   const Problem({
     required this.id,
@@ -55,6 +59,38 @@ class Problem {
     required this.solvedCount,
     required this.successRate,
     required this.relatedTopics,
+    this.author,
+    this.authorAvatar,
+    this.likes,
+    this.bookmarks,
+  });
+}
+
+class Reply {
+  final String id;
+  final String authorName;
+  final String authorAvatar;
+  final String content;
+  final DateTime createdAt;
+  final List<String>? images;
+  final String? audioUrl;
+  final String? codeSnippet;
+  final String? codeLanguage;
+  final int likes;
+  final bool isAccepted;
+
+  const Reply({
+    required this.id,
+    required this.authorName,
+    required this.authorAvatar,
+    required this.content,
+    required this.createdAt,
+    this.images,
+    this.audioUrl,
+    this.codeSnippet,
+    this.codeLanguage,
+    required this.likes,
+    required this.isAccepted,
   });
 }
 
@@ -116,6 +152,10 @@ final List<Problem> problems = [
     solvedCount: 5000,
     successRate: 95.5,
     relatedTopics: ["哈希表", "查找"],
+    author: "张教授",
+    authorAvatar: "https://ui-avatars.com/api/?name=张教授&background=random",
+    likes: 2345,
+    bookmarks: 1234,
   ),
   Problem(
     id: "p2",
@@ -133,5 +173,9 @@ final List<Problem> problems = [
     solvedCount: 3000,
     successRate: 75.8,
     relatedTopics: ["动态规划", "字符串处理"],
+    author: "李博士",
+    authorAvatar: "https://ui-avatars.com/api/?name=李博士&background=random",
+    likes: 1856,
+    bookmarks: 978,
   ),
 ];

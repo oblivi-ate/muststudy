@@ -3,6 +3,7 @@ import 'screens/main_screen.dart';
 import 'screens/resource_details.dart';
 import 'screens/problem_details.dart';
 import 'util/places.dart';
+import 'theme/app_theme.dart';
 
 void main() {
   runApp(const MyApp());
@@ -15,31 +16,9 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       title: 'MustStudy',
+      theme: appTheme,
+      home: const MainScreen(),
       debugShowCheckedModeBanner: false,
-      theme: ThemeData(
-        primaryColor: Colors.blue,
-        colorScheme: ColorScheme.fromSeed(
-          seedColor: Colors.blue,
-          primary: Colors.blue,
-          secondary: Colors.blueAccent,
-        ),
-        appBarTheme: const AppBarTheme(
-          backgroundColor: Colors.white,
-          foregroundColor: Colors.black,
-          elevation: 1,
-        ),
-        scaffoldBackgroundColor: Colors.white,
-        cardTheme: CardTheme(
-          elevation: 2,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(8),
-          ),
-        ),
-      ),
-      initialRoute: '/',
-      routes: {
-        '/': (context) => const MainScreen(),
-      },
       onGenerateRoute: (settings) {
         if (settings.name == '/resource') {
           final resource = settings.arguments as StudyResource;
