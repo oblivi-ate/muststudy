@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 import '../theme/app_theme.dart';
 import 'home_screen.dart';
 import 'forum_screen.dart';
-import 'profile.dart';
+import 'profile_screen.dart';
+import 'message_screen.dart';
+import 'achievement_screen.dart';
 
 class MainScreen extends StatefulWidget {
   const MainScreen({Key? key}) : super(key: key);
@@ -17,10 +19,9 @@ class _MainScreenState extends State<MainScreen> {
 
   final List<Widget> _screens = [
     const HomeScreen(),
-    const ForumScreen(),
-    const Center(child: Text('进度')),
-    const Center(child: Text('消息')),
-    const Profile(),
+    const AchievementScreen(),
+    const MessageScreen(),
+    const ProfileScreen(),
   ];
 
   @override
@@ -71,10 +72,9 @@ class _MainScreenState extends State<MainScreen> {
               mainAxisAlignment: MainAxisAlignment.spaceAround,
               children: [
                 _buildNavItem(0, Icons.home_outlined, Icons.home, '首页'),
-                _buildNavItem(1, Icons.forum_outlined, Icons.forum, '论坛'),
-                _buildNavItem(2, Icons.bar_chart_outlined, Icons.bar_chart, '进度'),
-                _buildNavItem(3, Icons.message_outlined, Icons.message, '消息'),
-                _buildNavItem(4, Icons.person_outline, Icons.person, '我的'),
+                _buildNavItem(1, Icons.emoji_events_outlined, Icons.emoji_events, '成就'),
+                _buildNavItem(2, Icons.message_outlined, Icons.message, '消息'),
+                _buildNavItem(3, Icons.person_outline, Icons.person, '我的'),
               ],
             ),
           ),
