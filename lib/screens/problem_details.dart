@@ -38,6 +38,26 @@ class _ProblemDetailsState extends State<ProblemDetails> {
       codeLanguage: 'python',
       likes: 15,
       isAccepted: true,
+      subReplies: [
+        SubReply(
+          id: '1-1',
+          authorName: '张同学',
+          authorAvatar: 'https://ui-avatars.com/api/?name=张同学&background=random',
+          content: '这个解法非常清晰，请问时间复杂度是怎么分析的？',
+          createdAt: DateTime.now().subtract(const Duration(hours: 1, minutes: 30)),
+          likes: 3,
+          replyToName: '王同学',
+        ),
+        SubReply(
+          id: '1-2',
+          authorName: '王同学',
+          authorAvatar: 'https://ui-avatars.com/api/?name=王同学&background=random',
+          content: '因为我们只需要遍历一次数组，而哈希表的查找是O(1)的，所以总的时间复杂度是O(n)。',
+          createdAt: DateTime.now().subtract(const Duration(hours: 1)),
+          likes: 5,
+          replyToName: '张同学',
+        ),
+      ],
     ),
     Reply(
       id: '2',
@@ -49,8 +69,147 @@ class _ProblemDetailsState extends State<ProblemDetails> {
       images: ['solution_diagram.png'],
       likes: 8,
       isAccepted: false,
+      subReplies: [],
     ),
   ];
+
+  String? _replyingTo;
+  Reply? _selectedReply;
+
+  void _showReplyDialog(BuildContext context, {Reply? parentReply, String? replyToName}) {
+    setState(() {
+      _replyingTo = replyToName;
+      _selectedReply = parentReply;
+    });
+    
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => Container(
+        height: MediaQuery.of(context).size.height * 0.8,
+        decoration: const BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+        ),
+        child: Column(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.grey.withOpacity(0.1),
+                    spreadRadius: 1,
+                    blurRadius: 10,
+                  ),
+                ],
+              ),
+              child: Row(
+                children: [
+                  Text(
+                    _replyingTo != null ? '回复 $_replyingTo' : '添加回复',
+                    style: const TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  const Spacer(),
+                  IconButton(
+                    icon: const Icon(Icons.close),
+                    onPressed: () => Navigator.pop(context),
+                  ),
+                ],
+              ),
+            ),
+            Expanded(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    if (_selectedReply != null) ...[
+                      Container(
+                        padding: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                          color: Colors.grey[100],
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              children: [
+                                CircleAvatar(
+                                  radius: 16,
+                                  backgroundImage: NetworkImage(_selectedReply!.authorAvatar),
+                                ),
+                                const SizedBox(width: 8),
+                                Text(
+                                  _selectedReply!.authorName,
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 8),
+                            Text(_selectedReply!.content),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                    ],
+                    TextField(
+                      controller: _messageController,
+                      maxLines: 5,
+                      decoration: const InputDecoration(
+                        hintText: '写下你的回复...',
+                        border: OutlineInputBorder(),
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    Row(
+                      children: [
+                        IconButton(
+                          icon: const Icon(Icons.image_outlined),
+                          onPressed: () {
+                            // TODO: 实现图片上传功能
+                          },
+                        ),
+                        IconButton(
+                          icon: const Icon(Icons.mic_none),
+                          onPressed: () {
+                            // TODO: 实现语音录制功能
+                          },
+                        ),
+                        IconButton(
+                          icon: const Icon(Icons.code),
+                          onPressed: () {
+                            // TODO: 实现代码编辑功能
+                          },
+                        ),
+                        const Spacer(),
+                        ElevatedButton(
+                          onPressed: () {
+                            // TODO: 实现发送回复功能
+                            Navigator.pop(context);
+                          },
+                          child: const Text('发送'),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -518,9 +677,7 @@ class _ProblemDetailsState extends State<ProblemDetails> {
               ),
               const SizedBox(width: 16),
               InkWell(
-                onTap: () {
-                  // TODO: 实现回复功能
-                },
+                onTap: () => _showReplyDialog(context, parentReply: reply, replyToName: reply.authorName),
                 child: Row(
                   children: [
                     Icon(
@@ -541,7 +698,130 @@ class _ProblemDetailsState extends State<ProblemDetails> {
               ),
             ],
           ),
+          if (reply.subReplies.isNotEmpty) ...[
+            const SizedBox(height: 12),
+            Container(
+              margin: const EdgeInsets.only(left: 24),
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.grey[50],
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: reply.subReplies.map((subReply) => _buildSubReplyItem(subReply, reply)).toList(),
+              ),
+            ),
+          ],
         ],
+      ),
+    );
+  }
+
+  Widget _buildSubReplyItem(SubReply subReply, Reply parentReply) {
+    return InkWell(
+      onTap: () => _showReplyDialog(context, parentReply: parentReply, replyToName: subReply.authorName),
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 12),
+        padding: const EdgeInsets.all(8),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(8),
+          color: Colors.transparent,
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                CircleAvatar(
+                  radius: 16,
+                  backgroundImage: NetworkImage(subReply.authorAvatar),
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  subReply.authorName,
+                  style: const TextStyle(
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+                Text(
+                  ' 回复 ',
+                  style: TextStyle(
+                    color: Colors.grey[600],
+                    fontSize: 14,
+                  ),
+                ),
+                Text(
+                  subReply.replyToName,
+                  style: const TextStyle(
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            Text(subReply.content),
+            const SizedBox(height: 8),
+            Row(
+              children: [
+                Text(
+                  DateFormat('MM-dd HH:mm').format(subReply.createdAt),
+                  style: TextStyle(
+                    color: Colors.grey[600],
+                    fontSize: 12,
+                  ),
+                ),
+                const Spacer(),
+                Row(
+                  children: [
+                    InkWell(
+                      onTap: () {
+                        // TODO: 实现点赞功能
+                      },
+                      child: Row(
+                        children: [
+                          Icon(
+                            Icons.thumb_up_outlined,
+                            size: 14,
+                            color: Colors.grey[600],
+                          ),
+                          const SizedBox(width: 4),
+                          Text(
+                            '${subReply.likes}',
+                            style: TextStyle(
+                              color: Colors.grey[600],
+                              fontSize: 12,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(width: 16),
+                    Row(
+                      children: [
+                        Icon(
+                          Icons.reply,
+                          size: 14,
+                          color: Colors.grey[600],
+                        ),
+                        const SizedBox(width: 4),
+                        Text(
+                          '回复',
+                          style: TextStyle(
+                            color: Colors.grey[600],
+                            fontSize: 12,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ],
+            ),
+            if (subReply != parentReply.subReplies.last)
+              const Divider(height: 24),
+          ],
+        ),
       ),
     );
   }
