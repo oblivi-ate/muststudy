@@ -1,96 +1,115 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import '../theme/app_theme.dart';
 
 class ProfileScreen extends StatelessWidget {
   const ProfileScreen({Key? key}) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      body: CustomScrollView(
-        slivers: [
-          _buildAppBar(),
-          SliverToBoxAdapter(
-            child: Column(
-              children: [
-                _buildStatisticsCard(),
-                const SizedBox(height: 16),
-                _buildFunctionList(),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
+    // 设置状态栏颜色
+    SystemChrome.setSystemUIOverlayStyle(const SystemUiOverlayStyle(
+      statusBarColor: Color(0xFFFFE4D4),
+      statusBarIconBrightness: Brightness.dark,
+    ));
 
-  Widget _buildAppBar() {
-    return SliverAppBar(
-      expandedHeight: 200,
-      pinned: true,
-      flexibleSpace: FlexibleSpaceBar(
-        background: Container(
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              begin: Alignment.topCenter,
-              end: Alignment.bottomCenter,
-              colors: [
-                Colors.blue[700]!,
-                Colors.blue[500]!,
-              ],
-            ),
+    return Scaffold(
+      backgroundColor: const Color(0xFFFFE4D4),
+      body: Stack(
+        children: [
+          Container(
+            color: const Color(0xFFFFE4D4),
           ),
-          child: SafeArea(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                const CircleAvatar(
-                  radius: 40,
-                  backgroundImage: NetworkImage(
-                    'https://ui-avatars.com/api/?name=学习者&background=random',
-                  ),
-                ),
-                const SizedBox(height: 12),
-                const Text(
-                  '学习者',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 20,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 12,
-                    vertical: 4,
-                  ),
-                  decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.2),
-                    borderRadius: BorderRadius.circular(20),
-                  ),
-                  child: const Row(
-                    mainAxisSize: MainAxisSize.min,
+          Column(
+            children: [
+              // 顶部个人信息
+              SafeArea(
+                child: Container(
+                  padding: const EdgeInsets.only(top: 20, bottom: 30),
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      Icon(
-                        Icons.star,
-                        size: 16,
-                        color: Colors.amber,
+                      const CircleAvatar(
+                        radius: 40,
+                        backgroundImage: NetworkImage(
+                          'https://ui-avatars.com/api/?name=学习者&background=random',
+                        ),
                       ),
-                      SizedBox(width: 4),
-                      Text(
-                        'Lv.5 勤奋学习者',
+                      const SizedBox(height: 12),
+                      const Text(
+                        '学习者',
                         style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 12,
+                          color: Colors.black87,
+                          fontSize: 20,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 4,
+                        ),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withOpacity(0.2),
+                          borderRadius: BorderRadius.circular(20),
+                        ),
+                        child: const Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(
+                              Icons.star,
+                              size: 16,
+                              color: Colors.amber,
+                            ),
+                            SizedBox(width: 4),
+                            Text(
+                              'Lv.5 勤奋学习者',
+                              style: TextStyle(
+                                color: Colors.black87,
+                                fontSize: 12,
+                              ),
+                            ),
+                          ],
                         ),
                       ),
                     ],
                   ),
                 ),
-              ],
-            ),
+              ),
+              // 内容区域
+              Expanded(
+                child: Container(
+                  width: double.infinity,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFFFF8F3),
+                    borderRadius: const BorderRadius.vertical(
+                      top: Radius.circular(30),
+                    ),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.05),
+                        blurRadius: 10,
+                        offset: const Offset(0, -2),
+                      ),
+                    ],
+                  ),
+                  child: SingleChildScrollView(
+                    child: Column(
+                      children: [
+                        const SizedBox(height: 20),
+                        _buildStatisticsCard(),
+                        const SizedBox(height: 16),
+                        _buildFunctionList(),
+                        const SizedBox(height: 20),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ],
           ),
-        ),
+        ],
       ),
     );
   }

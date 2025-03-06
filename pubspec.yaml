@@ -59,6 +59,7 @@ flutter:
   uses-material-design: true
 
   assets:
+    - assets/backgrounds/
     - assets/resources/
     - assets/courses/
     - assets/1.jpeg

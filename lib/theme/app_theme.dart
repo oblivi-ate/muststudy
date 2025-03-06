@@ -9,7 +9,8 @@ class AppColors {
   
   static const Color primary = coral;
   static const Color secondary = mint;
-  static const Color background = Color(0xFFE8F0D8); // 浅绿背景色
+  static const Color background = Color(0xFFFFF8F3); // 米白色背景
+  static const Color headerBackground = Color(0xFFFFE4D4); // 顶部导航栏背景色
   
   static const LinearGradient primaryGradient = LinearGradient(
     colors: [coral, peach],
@@ -51,8 +52,9 @@ ThemeData appTheme = ThemeData(
     color: Colors.white,
     elevation: 2,
     shape: RoundedRectangleBorder(
-      borderRadius: BorderRadius.circular(16),
+      borderRadius: BorderRadius.circular(20),
     ),
+    margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
   ),
   
   // 输入框主题
@@ -60,15 +62,15 @@ ThemeData appTheme = ThemeData(
     filled: true,
     fillColor: Colors.white,
     border: OutlineInputBorder(
-      borderRadius: BorderRadius.circular(12),
+      borderRadius: BorderRadius.circular(20),
       borderSide: BorderSide.none,
     ),
     enabledBorder: OutlineInputBorder(
-      borderRadius: BorderRadius.circular(12),
+      borderRadius: BorderRadius.circular(20),
       borderSide: BorderSide.none,
     ),
     focusedBorder: OutlineInputBorder(
-      borderRadius: BorderRadius.circular(12),
+      borderRadius: BorderRadius.circular(20),
       borderSide: const BorderSide(color: AppColors.primary, width: 1),
     ),
   ),

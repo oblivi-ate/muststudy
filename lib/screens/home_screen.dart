@@ -1,63 +1,116 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import '../theme/app_theme.dart';
 import 'forum_screen.dart';
 import '../widgets/ai_assistant.dart';
+import '../util/places.dart';
+import 'resource_details.dart';
+import 'learning_resources_screen.dart';
 
 class HomeScreen extends StatelessWidget {
   const HomeScreen({Key? key}) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      body: SafeArea(
-        child: SingleChildScrollView(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              _buildHeader(context),
-              _buildSearchBar(context),
-              _buildQuickActions(context),
-              _buildPopularDestinations(context),
-              _buildRecentActivities(context),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
+    // 设置状态栏颜色
+    SystemChrome.setSystemUIOverlayStyle(const SystemUiOverlayStyle(
+      statusBarColor: Color(0xFFFFE4D4),
+      statusBarIconBrightness: Brightness.dark,
+    ));
 
-  Widget _buildHeader(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(20),
-      child: Row(
-        children: [
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'Hello,',
-                style: TextStyle(
-                  fontSize: 16,
-                  color: Colors.grey[600],
+    return Scaffold(
+      backgroundColor: const Color(0xFFFFE4D4),
+      appBar: AppBar(
+        backgroundColor: const Color(0xFFFFE4D4),
+        elevation: 0,
+        toolbarHeight: 70,
+        title: Row(
+          children: [
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Hello,',
+                  style: TextStyle(
+                    fontSize: 14,
+                    color: Colors.grey[700],
+                  ),
                 ),
+                const Text(
+                  '李同学',
+                  style: TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.black87,
+                  ),
+                ),
+              ],
+            ),
+            const Spacer(),
+            CircleAvatar(
+              radius: 24,
+              backgroundColor: Colors.white.withOpacity(0.9),
+              child: Icon(
+                Icons.person_outline,
+                color: AppColors.primary,
+                size: 28,
               ),
-              const Text(
-                '李同学',
-                style: TextStyle(
-                  fontSize: 24,
-                  fontWeight: FontWeight.bold,
+            ),
+          ],
+        ),
+        systemOverlayStyle: const SystemUiOverlayStyle(
+          statusBarColor: Color(0xFFFFE4D4),
+          statusBarIconBrightness: Brightness.dark,
+        ),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.emoji_events),
+            onPressed: () {
+              Navigator.pushNamed(context, '/achievements');
+            },
+          ),
+        ],
+      ),
+      body: Stack(
+        children: [
+          Container(
+            color: const Color(0xFFFFE4D4),
+          ),
+          Column(
+            children: [
+              const SizedBox(height: 30),
+              Expanded(
+                child: Container(
+                  width: double.infinity,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFFFF8F3),
+                    borderRadius: const BorderRadius.vertical(
+                      top: Radius.circular(30),
+                    ),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.05),
+                        blurRadius: 10,
+                        offset: const Offset(0, -2),
+                      ),
+                    ],
+                  ),
+                  child: SingleChildScrollView(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const SizedBox(height: 20),
+                        _buildSearchBar(context),
+                        _buildMotivationCard(context),
+                        _buildQuickActions(context),
+                        _buildRecentActivities(context),
+                        const SizedBox(height: 20),
+                      ],
+                    ),
+                  ),
                 ),
               ),
             ],
-          ),
-          const Spacer(),
-          CircleAvatar(
-            radius: 24,
-            backgroundColor: AppColors.primary.withOpacity(0.1),
-            child: const Icon(
-              Icons.person_outline,
-              color: AppColors.primary,
-            ),
           ),
         ],
       ),
@@ -147,6 +200,11 @@ class HomeScreen extends StatelessWidget {
                       backgroundColor: Colors.transparent,
                       builder: (context) => const AIAssistantDialog(),
                     );
+                  } else if (action['label'] == '学习资源') {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (context) => const LearningResourcesScreen()),
+                    );
                   }
                 },
                 child: Container(
@@ -183,104 +241,65 @@ class HomeScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildPopularDestinations(BuildContext context) {
+  Widget _buildMotivationCard(BuildContext context) {
+    final quotes = [
+      {'text': '学习不是为了竞争，而是为了成为更好的自己', 'author': '— 孔子'},
+      {'text': '每一个不曾起舞的日子，都是对生命的辜负', 'author': '— 尼采'},
+      {'text': '知识就是力量，行动才是关键', 'author': '— 培根'},
+      {'text': '学习是一个渐进的过程，不要期待一蹴而就', 'author': '— 李白'},
+    ];
+
+    final randomQuote = (quotes..shuffle()).first;
+
     return Container(
-      padding: const EdgeInsets.all(20),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Text(
-            '热门推荐',
-            style: TextStyle(
-              fontSize: 20,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-          const SizedBox(height: 16),
-          SizedBox(
-            height: 180,
-            child: ListView(
-              scrollDirection: Axis.horizontal,
-              children: [
-                _buildDestinationCard(
-                  context,
-                  title: '算法基础',
-                  subtitle: '数据结构与算法',
-                  gradient: AppColors.primaryGradient,
-                  icon: Icons.code,
-                ),
-                _buildDestinationCard(
-                  context,
-                  title: '面试技巧',
-                  subtitle: '求职必备',
-                  gradient: AppColors.secondaryGradient,
-                  icon: Icons.work,
-                ),
-              ],
-            ),
+      margin: const EdgeInsets.fromLTRB(20, 12, 20, 0),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.grey.withOpacity(0.1),
+            spreadRadius: 1,
+            blurRadius: 10,
           ),
         ],
       ),
-    );
-  }
-
-  Widget _buildDestinationCard(
-    BuildContext context, {
-    required String title,
-    required String subtitle,
-    required LinearGradient gradient,
-    required IconData icon,
-  }) {
-    return Container(
-      width: 160,
-      margin: const EdgeInsets.only(right: 16),
-      decoration: BoxDecoration(
-        gradient: gradient,
-        borderRadius: BorderRadius.circular(20),
-      ),
-      child: Stack(
+      child: Row(
         children: [
-          Positioned(
-            right: -20,
-            bottom: -20,
+          Container(
+            width: 80,
+            height: 80,
+            decoration: BoxDecoration(
+              color: AppColors.mint.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(12),
+            ),
             child: Icon(
-              icon,
-              size: 100,
-              color: Colors.white.withOpacity(0.2),
+              Icons.auto_awesome,
+              size: 40,
+              color: AppColors.mint,
             ),
           ),
-          Padding(
-            padding: const EdgeInsets.all(20),
+          const SizedBox(width: 16),
+          Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Container(
-                  padding: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.2),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Icon(
-                    icon,
-                    color: Colors.white,
-                    size: 24,
-                  ),
-                ),
-                const Spacer(),
                 Text(
-                  title,
+                  randomQuote['text']!,
                   style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
+                    fontSize: 16,
+                    fontWeight: FontWeight.w500,
+                    height: 1.5,
                   ),
                 ),
-                const SizedBox(height: 4),
+                const SizedBox(height: 8),
                 Text(
-                  subtitle,
+                  randomQuote['author']!,
                   style: TextStyle(
-                    color: Colors.white.withOpacity(0.8),
                     fontSize: 14,
+                    color: Colors.grey[600],
+                    fontStyle: FontStyle.italic,
                   ),
                 ),
               ],
@@ -356,6 +375,7 @@ class HomeScreen extends StatelessWidget {
             child: Icon(
               icon,
               color: color,
+              size: 24,
             ),
           ),
           const SizedBox(width: 16),
@@ -370,6 +390,7 @@ class HomeScreen extends StatelessWidget {
                     fontWeight: FontWeight.w500,
                   ),
                 ),
+                const SizedBox(height: 4),
                 Text(
                   subtitle,
                   style: TextStyle(

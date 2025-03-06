@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import '../theme/app_theme.dart';
 
 class MessageScreen extends StatefulWidget {
@@ -25,51 +26,86 @@ class _MessageScreenState extends State<MessageScreen> with SingleTickerProvider
 
   @override
   Widget build(BuildContext context) {
+    // 设置状态栏颜色
+    SystemChrome.setSystemUIOverlayStyle(const SystemUiOverlayStyle(
+      statusBarColor: Color(0xFFFFE4D4),
+      statusBarIconBrightness: Brightness.dark,
+    ));
+
     return Scaffold(
-      backgroundColor: Colors.grey[50],
+      backgroundColor: const Color(0xFFFFE4D4),
       appBar: AppBar(
+        backgroundColor: const Color(0xFFFFE4D4),
+        elevation: 0,
         title: const Text(
           '消息中心',
           style: TextStyle(
+            color: Colors.black87,
             fontSize: 20,
             fontWeight: FontWeight.bold,
           ),
         ),
-        bottom: PreferredSize(
-          preferredSize: const Size.fromHeight(48),
-          child: Container(
-            decoration: BoxDecoration(
-              color: Colors.white,
-              border: Border(
-                bottom: BorderSide(
-                  color: Colors.grey[200]!,
-                  width: 1,
+      ),
+      body: Stack(
+        children: [
+          Container(
+            color: const Color(0xFFFFE4D4),
+          ),
+          Column(
+            children: [
+              Container(
+                color: const Color(0xFFFFE4D4),
+                child: Container(
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  margin: const EdgeInsets.symmetric(horizontal: 16),
+                  child: TabBar(
+                    controller: _tabController,
+                    labelColor: AppColors.primary,
+                    unselectedLabelColor: Colors.grey[600],
+                    indicatorColor: AppColors.primary,
+                    indicatorSize: TabBarIndicatorSize.label,
+                    labelStyle: const TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w500,
+                    ),
+                    tabs: const [
+                      Tab(text: '系统通知'),
+                      Tab(text: '互动消息'),
+                    ],
+                  ),
                 ),
               ),
-            ),
-            child: TabBar(
-              controller: _tabController,
-              labelColor: AppColors.primary,
-              unselectedLabelColor: Colors.grey[600],
-              indicatorColor: AppColors.primary,
-              indicatorSize: TabBarIndicatorSize.label,
-              labelStyle: const TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.w500,
+              const SizedBox(height: 30),
+              Expanded(
+                child: Container(
+                  width: double.infinity,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFFFF8F3),
+                    borderRadius: const BorderRadius.vertical(
+                      top: Radius.circular(30),
+                    ),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.05),
+                        blurRadius: 10,
+                        offset: const Offset(0, -2),
+                      ),
+                    ],
+                  ),
+                  child: TabBarView(
+                    controller: _tabController,
+                    children: [
+                      _buildSystemNotifications(),
+                      _buildInteractionMessages(),
+                    ],
+                  ),
+                ),
               ),
-              tabs: const [
-                Tab(text: '系统通知'),
-                Tab(text: '互动消息'),
-              ],
-            ),
+            ],
           ),
-        ),
-      ),
-      body: TabBarView(
-        controller: _tabController,
-        children: [
-          _buildSystemNotifications(),
-          _buildInteractionMessages(),
         ],
       ),
     );

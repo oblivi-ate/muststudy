@@ -1,47 +1,117 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import '../util/places.dart';
 import '../widgets/search_bar.dart';
 import 'resource_details.dart';
 import 'problem_details.dart';
+import '../theme/app_theme.dart';
 
 class ForumScreen extends StatelessWidget {
   const ForumScreen({Key? key}) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
+    // 设置状态栏颜色
+    SystemChrome.setSystemUIOverlayStyle(const SystemUiOverlayStyle(
+      statusBarColor: Color(0xFFFFE4D4),
+      statusBarIconBrightness: Brightness.dark,
+    ));
+
     return Scaffold(
+      backgroundColor: const Color(0xFFFFE4D4),
       appBar: AppBar(
-        title: const Text("学习论坛"),
+        backgroundColor: const Color(0xFFFFE4D4),
+        elevation: 0,
+        title: const Text(
+          '学习论坛',
+          style: TextStyle(
+            color: Colors.black87,
+            fontSize: 20,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
         actions: <Widget>[
           IconButton(
-            icon: const Icon(Icons.notifications_none),
+            icon: const Icon(Icons.notifications_none, color: Colors.black87),
             onPressed: () {},
           ),
           IconButton(
-            icon: const Icon(Icons.person_outline),
+            icon: const Icon(Icons.person_outline, color: Colors.black87),
             onPressed: () {},
           ),
         ],
       ),
-      body: ListView(
-        children: <Widget>[
-          const Padding(
-            padding: EdgeInsets.all(20.0),
-            child: Text(
-              "今天想学点什么？",
-              style: TextStyle(
-                fontSize: 28.0,
-                fontWeight: FontWeight.w600,
+      body: Stack(
+        children: [
+          Container(
+            color: const Color(0xFFFFE4D4),
+          ),
+          Column(
+            children: [
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 20.0),
+                color: const Color(0xFFFFE4D4),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      "今天想学点什么？",
+                      style: TextStyle(
+                        fontSize: 28.0,
+                        fontWeight: FontWeight.w600,
+                        color: Colors.black87,
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    const CustomSearchBar(),
+                    const SizedBox(height: 16),
+                    _buildCategoryChips(),
+                  ],
+                ),
               ),
-            ),
+              const SizedBox(height: 30),
+              Expanded(
+                child: Container(
+                  width: double.infinity,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFFFF8F3),
+                    borderRadius: const BorderRadius.vertical(
+                      top: Radius.circular(30),
+                    ),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.05),
+                        blurRadius: 10,
+                        offset: const Offset(0, -2),
+                      ),
+                    ],
+                  ),
+                  child: SingleChildScrollView(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const SizedBox(height: 20),
+                        Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 20.0),
+                          child: Text(
+                            "热门题目",
+                            style: TextStyle(
+                              fontSize: 20.0,
+                              fontWeight: FontWeight.w600,
+                              color: Colors.grey[800],
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+                        _buildPopularProblems(),
+                        const SizedBox(height: 20),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ],
           ),
-          const Padding(
-            padding: EdgeInsets.symmetric(horizontal: 20.0),
-            child: CustomSearchBar(),
-          ),
-          _buildCategoryChips(),
-          _buildRecommendedResources(context),
-          _buildPopularProblems(),
         ],
       ),
     );
@@ -49,18 +119,44 @@ class ForumScreen extends StatelessWidget {
 
   Widget _buildCategoryChips() {
     final categories = ["算法", "数据结构", "系统设计", "数据库", "前端开发", "后端开发"];
-    return Container(
+    return SizedBox(
       height: 50.0,
-      padding: const EdgeInsets.symmetric(horizontal: 20.0),
       child: ListView.builder(
         scrollDirection: Axis.horizontal,
         itemCount: categories.length,
         itemBuilder: (context, index) {
           return Padding(
-            padding: const EdgeInsets.only(right: 8.0),
-            child: ActionChip(
-              label: Text(categories[index]),
-              onPressed: () {},
+            padding: const EdgeInsets.only(right: 12.0),
+            child: Container(
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(25),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.05),
+                    blurRadius: 8,
+                    offset: const Offset(0, 2),
+                  ),
+                ],
+              ),
+              child: Material(
+                color: Colors.transparent,
+                child: InkWell(
+                  borderRadius: BorderRadius.circular(25),
+                  onTap: () {},
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                    child: Text(
+                      categories[index],
+                      style: TextStyle(
+                        color: AppColors.primary,
+                        fontSize: 14,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
             ),
           );
         },
@@ -68,226 +164,128 @@ class ForumScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildRecommendedResources(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const Padding(
-          padding: EdgeInsets.all(20.0),
-          child: Text(
-            "推荐学习资源",
-            style: TextStyle(
-              fontSize: 20.0,
-              fontWeight: FontWeight.w600,
-            ),
+  Widget _buildPopularProblems() {
+    return ListView.builder(
+      padding: const EdgeInsets.symmetric(horizontal: 20.0),
+      physics: const NeverScrollableScrollPhysics(),
+      shrinkWrap: true,
+      itemCount: problems.length,
+      itemBuilder: (context, index) {
+        final problem = problems[index];
+        return Container(
+          margin: const EdgeInsets.only(bottom: 12.0),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(20),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.05),
+                blurRadius: 10,
+                offset: const Offset(0, 2),
+              ),
+            ],
           ),
-        ),
-        Container(
-          height: 220.0,
-          padding: const EdgeInsets.only(left: 20.0),
-          child: ListView.builder(
-            scrollDirection: Axis.horizontal,
-            itemCount: studyResources.length,
-            itemBuilder: (context, index) {
-              final resource = studyResources[index];
-              return Container(
-                width: 280.0,
-                margin: const EdgeInsets.only(right: 16.0),
-                child: Card(
-                  clipBehavior: Clip.antiAlias,
-                  child: InkWell(
-                    onTap: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => ResourceDetails(resource: resource),
-                        ),
-                      );
-                    },
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Image.asset(
-                          resource.coverImage,
-                          height: 120.0,
-                          width: double.infinity,
-                          fit: BoxFit.cover,
-                        ),
-                        Padding(
-                          padding: const EdgeInsets.all(12.0),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                resource.title,
-                                style: const TextStyle(
-                                  fontSize: 16.0,
-                                  fontWeight: FontWeight.w600,
-                                ),
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                              const SizedBox(height: 4.0),
-                              Row(
-                                children: [
-                                  Icon(
-                                    resource.type == 'video' ? Icons.play_circle_outline : Icons.article_outlined,
-                                    size: 16.0,
-                                    color: Colors.grey[600],
-                                  ),
-                                  const SizedBox(width: 4.0),
-                                  Text(
-                                    resource.duration,
-                                    style: TextStyle(
-                                      color: Colors.grey[600],
-                                      fontSize: 12.0,
-                                    ),
-                                  ),
-                                  const SizedBox(width: 12.0),
-                                  Icon(
-                                    Icons.person_outline,
-                                    size: 16.0,
-                                    color: Colors.grey[600],
-                                  ),
-                                  const SizedBox(width: 4.0),
-                                  Text(
-                                    resource.author,
-                                    style: TextStyle(
-                                      color: Colors.grey[600],
-                                      fontSize: 12.0,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
+          child: InkWell(
+            borderRadius: BorderRadius.circular(20),
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => ProblemDetails(problem: problem),
                 ),
               );
             },
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildPopularProblems() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const Padding(
-          padding: EdgeInsets.all(20.0),
-          child: Text(
-            "热门题目",
-            style: TextStyle(
-              fontSize: 20.0,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-        ),
-        ListView.builder(
-          padding: const EdgeInsets.symmetric(horizontal: 20.0),
-          physics: const NeverScrollableScrollPhysics(),
-          shrinkWrap: true,
-          itemCount: problems.length,
-          itemBuilder: (context, index) {
-            final problem = problems[index];
-            return Card(
-              margin: const EdgeInsets.only(bottom: 12.0),
-              child: ListTile(
-                contentPadding: const EdgeInsets.all(16.0),
-                title: Row(
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 4.0),
-                      decoration: BoxDecoration(
-                        color: problem.difficulty == "简单"
-                            ? Colors.green[100]
-                            : problem.difficulty == "中等"
-                                ? Colors.orange[100]
-                                : Colors.red[100],
-                        borderRadius: BorderRadius.circular(4.0),
-                      ),
-                      child: Text(
-                        problem.difficulty,
-                        style: TextStyle(
+            child: Padding(
+              padding: const EdgeInsets.all(16.0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 4.0),
+                        decoration: BoxDecoration(
                           color: problem.difficulty == "简单"
-                              ? Colors.green[900]
+                              ? Colors.green[50]
                               : problem.difficulty == "中等"
-                                  ? Colors.orange[900]
-                                  : Colors.red[900],
+                                  ? Colors.orange[50]
+                                  : Colors.red[50],
+                          borderRadius: BorderRadius.circular(8.0),
+                        ),
+                        child: Text(
+                          problem.difficulty,
+                          style: TextStyle(
+                            color: problem.difficulty == "简单"
+                                ? Colors.green[700]
+                                : problem.difficulty == "中等"
+                                    ? Colors.orange[700]
+                                    : Colors.red[700],
+                            fontSize: 12.0,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 12.0),
+                      Expanded(
+                        child: Text(
+                          problem.title,
+                          style: const TextStyle(
+                            fontSize: 16.0,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12.0),
+                  Row(
+                    children: [
+                      Icon(Icons.check_circle_outline, size: 16.0, color: Colors.grey[600]),
+                      const SizedBox(width: 4.0),
+                      Text(
+                        "通过率: ${(problem.successRate).toStringAsFixed(1)}%",
+                        style: TextStyle(
+                          color: Colors.grey[600],
                           fontSize: 12.0,
                         ),
                       ),
-                    ),
-                    const SizedBox(width: 8.0),
-                    Expanded(
-                      child: Text(
-                        problem.title,
-                        style: const TextStyle(
-                          fontSize: 16.0,
-                          fontWeight: FontWeight.w600,
+                      const SizedBox(width: 16.0),
+                      Icon(Icons.person_outline, size: 16.0, color: Colors.grey[600]),
+                      const SizedBox(width: 4.0),
+                      Text(
+                        "提交次数: ${problem.solvedCount}",
+                        style: TextStyle(
+                          color: Colors.grey[600],
+                          fontSize: 12.0,
                         ),
                       ),
-                    ),
-                  ],
-                ),
-                subtitle: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const SizedBox(height: 8.0),
-                    Row(
-                      children: [
-                        Icon(Icons.check_circle_outline, size: 16.0, color: Colors.grey[600]),
-                        const SizedBox(width: 4.0),
-                        Text(
-                          "通过率: ${(problem.successRate).toStringAsFixed(1)}%",
-                          style: TextStyle(
-                            color: Colors.grey[600],
-                            fontSize: 12.0,
-                          ),
+                    ],
+                  ),
+                  const SizedBox(height: 12.0),
+                  Wrap(
+                    spacing: 8.0,
+                    runSpacing: 8.0,
+                    children: problem.tags.map((tag) => Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 4.0),
+                      decoration: BoxDecoration(
+                        color: AppColors.primary.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(8.0),
+                      ),
+                      child: Text(
+                        tag,
+                        style: TextStyle(
+                          fontSize: 12.0,
+                          color: AppColors.primary,
                         ),
-                        const SizedBox(width: 16.0),
-                        Icon(Icons.person_outline, size: 16.0, color: Colors.grey[600]),
-                        const SizedBox(width: 4.0),
-                        Text(
-                          "提交次数: ${problem.solvedCount}",
-                          style: TextStyle(
-                            color: Colors.grey[600],
-                            fontSize: 12.0,
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 8.0),
-                    Wrap(
-                      spacing: 8.0,
-                      children: problem.tags.map((tag) => Chip(
-                        label: Text(
-                          tag,
-                          style: const TextStyle(fontSize: 12.0),
-                        ),
-                        materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                      )).toList(),
-                    ),
-                  ],
-                ),
-                onTap: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => ProblemDetails(problem: problem),
-                    ),
-                  );
-                },
+                      ),
+                    )).toList(),
+                  ),
+                ],
               ),
-            );
-          },
-        ),
-      ],
+            ),
+          ),
+        );
+      },
     );
   }
 }
