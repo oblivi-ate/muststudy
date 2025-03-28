@@ -195,15 +195,7 @@ Row(
   ],
 )
 
-3.2 代码复用性 
-1.组件抽象
-Widget _buildTodayItem({
-  required IconData icon,
-  required Color color,
-  required String label,
-  required String value,
-})
-
+2.2.5 活跃度热力图
 GridView.builder(
   // 创新的热力图实现
   crossAxisCount: 20,
@@ -214,5 +206,16 @@ GridView.builder(
       color: AppColors.primary.withOpacity(0.1 + 0.15 * intensity),
     );
   },
-)
-
+3.2 代码复用性 
+1.组件抽象
+Widget _buildTodayItem({
+  required IconData icon,
+  required Color color,
+  required String label,
+  required String value,
+})
+2.
+样式封装
+统一的卡片样式
+可复用的文字样式
+标准化的间距设置

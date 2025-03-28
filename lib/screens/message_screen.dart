@@ -322,6 +322,11 @@ class _MessageScreenState extends State<MessageScreen> with SingleTickerProvider
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
+
+
+
+
+
                     Row(
                       children: [
                         Expanded(
