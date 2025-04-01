@@ -7,110 +7,107 @@ import '../util/places.dart';
 import 'resource_details.dart';
 import 'learning_resources_screen.dart';
 
-class HomeScreen extends StatelessWidget {
+class HomeScreen extends StatefulWidget {
   const HomeScreen({Key? key}) : super(key: key);
+
+  @override
+  State<HomeScreen> createState() => _HomeScreenState();
+}
+
+class _HomeScreenState extends State<HomeScreen> {
+  final String _userName = '李同学';
+  final int _todayGoal = 120;
+  final int _todayProgress = 75;
 
   @override
   Widget build(BuildContext context) {
     // 设置状态栏颜色
     SystemChrome.setSystemUIOverlayStyle(const SystemUiOverlayStyle(
-      statusBarColor: Color(0xFFFFE4D4),
-      statusBarIconBrightness: Brightness.dark,
+      statusBarColor: Colors.transparent,
+      statusBarIconBrightness: Brightness.light,
     ));
 
     return Scaffold(
-      backgroundColor: const Color(0xFFFFE4D4),
-      appBar: AppBar(
-        backgroundColor: const Color(0xFFFFE4D4),
-        elevation: 0,
-        toolbarHeight: 70,
-        title: Row(
-          children: [
-            Column(
+      backgroundColor: Colors.white,
+      body: Stack(
+        children: [
+          // 顶部背景图片
+          Container(
+            height: 1000,
+            width: double.infinity,
+            decoration: const BoxDecoration(
+              image: DecorationImage(
+                image: AssetImage('assets/images/home_bg_old.png'),
+                fit: BoxFit.cover,
+              ),
+            ),
+          ),
+       
+          // 顶部区域
+          Container(
+            padding: const EdgeInsets.fromLTRB(20, 60, 20, 20),
+            child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                // 欢迎语
                 Text(
-                  'Hello,',
-                  style: TextStyle(
-                    fontSize: 14,
-                    color: Colors.grey[700],
-                  ),
-                ),
-                const Text(
-                  '李同学',
-                  style: TextStyle(
-                    fontSize: 20,
+                  '你好，$_userName',
+                  style: const TextStyle(
+                    fontSize: 30,
                     fontWeight: FontWeight.bold,
-                    color: Colors.black87,
+                    color: Colors.green,
                   ),
                 ),
               ],
             ),
-            const Spacer(),
-            CircleAvatar(
-              radius: 24,
-              backgroundColor: Colors.white.withOpacity(0.9),
-              child: Icon(
-                Icons.person_outline,
-                color: AppColors.primary,
-                size: 28,
-              ),
-            ),
-          ],
-        ),
-        systemOverlayStyle: const SystemUiOverlayStyle(
-          statusBarColor: Color(0xFFFFE4D4),
-          statusBarIconBrightness: Brightness.dark,
-        ),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.emoji_events),
-            onPressed: () {
-              Navigator.pushNamed(context, '/achievements');
-            },
           ),
-        ],
-      ),
-      body: Stack(
-        children: [
-          Container(
-            color: const Color(0xFFFFE4D4),
-          ),
-          Column(
-            children: [
-              const SizedBox(height: 30),
-              Expanded(
-                child: Container(
-                  width: double.infinity,
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFFFF8F3),
-                    borderRadius: const BorderRadius.vertical(
-                      top: Radius.circular(30),
+          // 可拖拽的内容区域
+          DraggableScrollableSheet(
+            initialChildSize: 0.85,
+            minChildSize: 0.0,
+            maxChildSize: 0.95,
+            builder: (context, scrollController) {
+              return Container(
+                decoration: const BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.vertical(
+                    top: Radius.circular(30),
+                  ),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black12,
+                      blurRadius: 10,
+                      offset: Offset(0, -5),
                     ),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withOpacity(0.05),
-                        blurRadius: 10,
-                        offset: const Offset(0, -2),
+                  ],
+                ),
+                child: SingleChildScrollView(
+                  controller: scrollController,
+                  child: Column(
+                    children: [
+                      // 拖拽指示器
+                      Container(
+                        margin: const EdgeInsets.symmetric(vertical: 12),
+                        width: 40,
+                        height: 4,
+                        decoration: BoxDecoration(
+                          color: Colors.grey[300],
+                          borderRadius: BorderRadius.circular(2),
+                        ),
                       ),
+                      _buildSearchBar(context),
+                      const SizedBox(height: 20),
+                      _buildMotivationCard(context),
+                      const SizedBox(height: 20),
+                      _buildQuickActions(context),
+                      const SizedBox(height: 20),
+                      _buildRecentActivities(context),
+                      const SizedBox(height: 20),
                     ],
                   ),
-                  child: SingleChildScrollView(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const SizedBox(height: 20),
-                        _buildSearchBar(context),
-                        _buildMotivationCard(context),
-                        _buildQuickActions(context),
-                        _buildRecentActivities(context),
-                        const SizedBox(height: 20),
-                      ],
-                    ),
-                  ),
                 ),
-              ),
-            ],
+              );
+            },
           ),
         ],
       ),

@@ -99,155 +99,242 @@ class _AchievementScreenState extends State<AchievementScreen> {
   Widget _buildCurrentAchievement() {
     final achievement = _manager.currentAchievement!;
     
-    return Container(
-      width: double.infinity,
-      height: 300,
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(20),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            blurRadius: 10,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      child: Stack(
-        children: [
-          // 背景山脉图像
-          Container(
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(20),
-              gradient: LinearGradient(
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-                colors: [
-                  Color(0xFF7CB9E8),  // 天空蓝
-                  Color(0xFF0077BE),  // 深蓝
-                ],
+    return Column(
+      children: [
+        Container(
+          width: double.infinity,
+          height: 160,
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(20),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.05),
+                blurRadius: 10,
+                offset: const Offset(0, 2),
               ),
-            ),
+            ],
           ),
-          // 添加山脉剪影
-          Positioned(
-            bottom: 0,
-            left: 0,
-            right: 0,
-            child: ClipRRect(
-              borderRadius: const BorderRadius.vertical(
-                bottom: Radius.circular(20),
-              ),
-              child: Container(
-                height: 150,
-                decoration: const BoxDecoration(
+          child: Stack(
+            children: [
+              // 根据成就类型设置不同的背景
+              Container(
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(20),
                   gradient: LinearGradient(
-                    begin: Alignment.topCenter,
-                    end: Alignment.bottomCenter,
-                    colors: [
-                      Color(0xFF2B4C7E),  // 深蓝山脉
-                      Color(0xFF1B365C),  // 更深的蓝
-                    ],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: _getBackgroundColors(achievement.title),
                   ),
                 ),
-                child: CustomPaint(
-                  size: Size.infinite,
-                  painter: MountainSilhouettePainter(),
+              ),
+              // 根据成就类型设置不同的山脉剪影
+              Positioned(
+                bottom: 0,
+                left: 0,
+                right: 0,
+                child: ClipRRect(
+                  borderRadius: const BorderRadius.vertical(
+                    bottom: Radius.circular(20),
+                  ),
+                  child: Container(
+                    height: 80,
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        begin: Alignment.topCenter,
+                        end: Alignment.bottomCenter,
+                        colors: _getMountainColors(achievement.title),
+                      ),
+                    ),
+                    child: CustomPaint(
+                      size: Size.infinite,
+                      painter: _getMountainPainter(achievement.title),
+                    ),
+                  ),
                 ),
               ),
-            ),
-          ),
-          // 进度指示器和标记点
-          CustomPaint(
-            size: const Size(double.infinity, 300),
-            painter: MountainPathPainter(
-              progress: achievement.currentProgress / achievement.totalGoal,
-            ),
-          ),
-          // 成就信息
-          Positioned(
-            bottom: 20,
-            left: 20,
-            right: 20,
-            child: Container(
-              padding: const EdgeInsets.all(15),
-              decoration: BoxDecoration(
-                color: Colors.white.withOpacity(0.9),
-                borderRadius: BorderRadius.circular(15),
+              // 根据成就类型设置不同的路径
+              CustomPaint(
+                size: const Size(double.infinity, 160),
+                painter: _getPathPainter(achievement.title, achievement.currentProgress / achievement.totalGoal),
               ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+              // 关键节点标记
+              ...achievement.milestones.map((milestone) {
+                final position = milestone.requiredProgress / achievement.totalGoal;
+                return _buildMilestone(position, milestone.requirement, milestone.name);
+              }).toList(),
+            ],
+          ),
+        ),
+        const SizedBox(height: 15),
+        // 信息卡片部分保持不变
+        Container(
+          width: double.infinity,
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: Colors.white.withOpacity(0.85),
+            borderRadius: BorderRadius.circular(12),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.08),
+                blurRadius: 8,
+                offset: const Offset(0, 2),
+              ),
+            ],
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
                 children: [
-                  Text(
-                    achievement.title,
-                    style: const TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.black87,
-                    ),
+                  Icon(
+                    achievement.icon,
+                    size: 20,
+                    color: achievement.color.withOpacity(0.9),
                   ),
-                  const SizedBox(height: 8),
-                  Text(
-                    "已完成 ${achievement.currentProgress}/${achievement.totalGoal} ${achievement.description}",
-                    style: const TextStyle(
-                      fontSize: 14,
-                      color: Colors.black54,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  ClipRRect(
-                    borderRadius: BorderRadius.circular(10),
-                    child: LinearProgressIndicator(
-                      value: achievement.currentProgress / achievement.totalGoal,
-                      backgroundColor: Colors.grey[200],
-                      valueColor: AlwaysStoppedAnimation<Color>(AppColors.primary),
-                      minHeight: 8,
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      achievement.title,
+                      style: const TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.black87,
+                      ),
                     ),
                   ),
                 ],
               ),
-            ),
+              const SizedBox(height: 8),
+              Text(
+                "已完成 ${achievement.currentProgress}/${achievement.totalGoal} ${achievement.description}",
+                style: TextStyle(
+                  fontSize: 13,
+                  color: Colors.black54.withOpacity(0.9),
+                ),
+              ),
+              const SizedBox(height: 8),
+              ClipRRect(
+                borderRadius: BorderRadius.circular(6),
+                child: LinearProgressIndicator(
+                  value: achievement.currentProgress / achievement.totalGoal,
+                  backgroundColor: Colors.grey[200]?.withOpacity(0.8),
+                  valueColor: AlwaysStoppedAnimation<Color>(achievement.color.withOpacity(0.9)),
+                  minHeight: 6,
+                ),
+              ),
+            ],
           ),
-          // 关键节点标记
-          ...achievement.milestones.map((milestone) {
-            final position = milestone.requiredProgress / achievement.totalGoal;
-            return _buildMilestone(position, milestone.requirement, milestone.name);
-          }).toList(),
-        ],
-      ),
+        ),
+      ],
     );
+  }
+
+  // 根据成就标题获取背景颜色
+  List<Color> _getBackgroundColors(String title) {
+    if (title.contains('长城')) {
+      return [
+        Color(0xFF8B4513),  // 土褐色
+        Color(0xFF654321),  // 深褐色
+      ];
+    } else if (title.contains('喜马拉雅')) {
+      return [
+        Color(0xFF87CEEB),  // 天空蓝
+        Color(0xFF1E90FF),  // 深蓝
+      ];
+    } else if (title.contains('金字塔')) {
+      return [
+        Color(0xFFFFD700),  // 金色
+        Color(0xFFDAA520),  // 金棕色
+      ];
+    }
+    // 默认颜色
+    return [
+      Color(0xFF4A90E2),
+      Color(0xFF2C3E50),
+    ];
+  }
+
+  // 根据成就标题获取山脉颜色
+  List<Color> _getMountainColors(String title) {
+    if (title.contains('长城')) {
+      return [
+        Color(0xFF8B4513),  // 土褐色
+        Color(0xFF654321),  // 深褐色
+      ];
+    } else if (title.contains('喜马拉雅')) {
+      return [
+        Color(0xFF2B4C7E),  // 深蓝
+        Color(0xFF1B365C),  // 更深的蓝
+      ];
+    } else if (title.contains('金字塔')) {
+      return [
+        Color(0xFFDAA520),  // 金棕色
+        Color(0xFFB8860B),  // 暗金色
+      ];
+    }
+    // 默认颜色
+    return [
+      Color(0xFF34495E),
+      Color(0xFF2C3E50),
+    ];
+  }
+
+  // 根据成就标题获取山脉绘制器
+  CustomPainter _getMountainPainter(String title) {
+    if (title.contains('长城')) {
+      return GreatWallPainter();
+    } else if (title.contains('喜马拉雅')) {
+      return HimalayaPainter();
+    } else if (title.contains('金字塔')) {
+      return PyramidPainter();
+    }
+    return MountainSilhouettePainter();
+  }
+
+  // 根据成就标题获取路径绘制器
+  CustomPainter _getPathPainter(String title, double progress) {
+    if (title.contains('长城')) {
+      return GreatWallPathPainter(progress: progress);
+    } else if (title.contains('喜马拉雅')) {
+      return HimalayaPathPainter(progress: progress);
+    } else if (title.contains('金字塔')) {
+      return PyramidPathPainter(progress: progress);
+    }
+    return MountainPathPainter(progress: progress);
   }
 
   Widget _buildMilestone(double position, String requirement, String name) {
     return Positioned(
       left: position * 300 - 30,
-      top: (1 - position) * 200,
+      top: (1 - position) * 150,
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
         decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(10),
+          color: Colors.white.withOpacity(0.98),
+          borderRadius: BorderRadius.circular(8),
           boxShadow: [
             BoxShadow(
               color: Colors.black.withOpacity(0.1),
-              blurRadius: 5,
+              blurRadius: 4,
               offset: const Offset(0, 2),
             ),
           ],
         ),
         child: Column(
+          mainAxisSize: MainAxisSize.min,
           children: [
             Text(
               name,
               style: const TextStyle(
-                fontSize: 12,
+                fontSize: 11,
                 fontWeight: FontWeight.bold,
               ),
             ),
             Text(
               requirement,
               style: const TextStyle(
-                fontSize: 10,
+                fontSize: 9,
                 color: Colors.grey,
               ),
             ),
@@ -440,37 +527,37 @@ class MountainPathPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     final paint = Paint()
-      ..color = AppColors.primary
+      ..color = Colors.white
       ..style = PaintingStyle.stroke
-      ..strokeWidth = 3;
+      ..strokeWidth = 2.5;
 
     final path = Path();
-    path.moveTo(0, size.height * 0.8);
+    path.moveTo(0, size.height * 0.85);
     
-    // 绘制蜿蜒的山路
+    // 绘制更平缓的路径
     path.quadraticBezierTo(
       size.width * 0.2,
-      size.height * 0.6,
-      size.width * 0.4,
       size.height * 0.7,
+      size.width * 0.4,
+      size.height * 0.75,
     );
     path.quadraticBezierTo(
       size.width * 0.6,
-      size.height * 0.8,
+      size.height * 0.6,
       size.width * 0.8,
-      size.height * 0.3,
+      size.height * 0.4,
     );
     path.quadraticBezierTo(
       size.width * 0.9,
-      size.height * 0.1,
-      size.width,
       size.height * 0.2,
+      size.width,
+      size.height * 0.25,
     );
 
     // 绘制虚线路径
     final dashPath = Path();
-    const dashWidth = 10.0;
-    const dashSpace = 5.0;
+    const dashWidth = 6.0;
+    const dashSpace = 3.0;
     double distance = 0.0;
     
     for (ui.PathMetric pathMetric in path.computeMetrics()) {
@@ -496,13 +583,29 @@ class MountainPathPainter extends CustomPainter {
     canvas.drawPath(
       dashPath,
       Paint()
-        ..color = Colors.grey.withOpacity(0.3)
+        ..color = Colors.white.withOpacity(0.2)
         ..style = PaintingStyle.stroke
-        ..strokeWidth = 3,
+        ..strokeWidth = 2.5,
     );
 
     // 绘制已完成的路径
     canvas.drawPath(progressPath, paint);
+
+    // 绘制路径上的标记点
+    if (progress > 0) {
+      final markerPaint = Paint()
+        ..color = Colors.white
+        ..style = PaintingStyle.fill;
+
+      for (ui.PathMetric pathMetric in path.computeMetrics()) {
+        final tangent = pathMetric.getTangentForOffset(
+          pathMetric.length * progress,
+        );
+        if (tangent != null) {
+          canvas.drawCircle(tangent.position, 3, markerPaint);
+        }
+      }
+    }
   }
 
   @override
@@ -513,13 +616,192 @@ class MountainSilhouettePainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     final paint = Paint()
-      ..color = Colors.white
+      ..color = Colors.white.withOpacity(0.15)
       ..style = PaintingStyle.fill;
 
     final path = Path();
-    path.moveTo(0, size.height * 0.8);
+    path.moveTo(0, size.height);
+
+    // 绘制更平缓的山脉
+    path.lineTo(size.width * 0.2, size.height * 0.75);
+    path.lineTo(size.width * 0.4, size.height);
+    path.close();
+
+    path.moveTo(size.width * 0.3, size.height);
+    path.lineTo(size.width * 0.5, size.height * 0.6);
+    path.lineTo(size.width * 0.7, size.height);
+    path.close();
+
+    path.moveTo(size.width * 0.6, size.height);
+    path.lineTo(size.width * 0.8, size.height * 0.7);
+    path.lineTo(size.width, size.height);
+    path.close();
+
+    canvas.drawPath(path, paint);
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
+}
+
+// 添加长城风格的绘制器
+class GreatWallPainter extends CustomPainter {
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..color = Colors.white.withOpacity(0.15)
+      ..style = PaintingStyle.fill;
+
+    final path = Path();
+    path.moveTo(0, size.height);
+
+    // 绘制长城风格的城墙
+    path.lineTo(size.width * 0.1, size.height * 0.8);
+    path.lineTo(size.width * 0.2, size.height * 0.7);
+    path.lineTo(size.width * 0.3, size.height * 0.8);
+    path.lineTo(size.width * 0.4, size.height * 0.7);
+    path.lineTo(size.width * 0.5, size.height * 0.8);
+    path.lineTo(size.width * 0.6, size.height * 0.7);
+    path.lineTo(size.width * 0.7, size.height * 0.8);
+    path.lineTo(size.width * 0.8, size.height * 0.7);
+    path.lineTo(size.width * 0.9, size.height * 0.8);
+    path.lineTo(size.width, size.height);
+    path.close();
+
+    canvas.drawPath(path, paint);
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
+}
+
+class GreatWallPathPainter extends CustomPainter {
+  final double progress;
+
+  GreatWallPathPainter({required this.progress});
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..color = Colors.white
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 2.5;
+
+    final path = Path();
+    path.moveTo(0, size.height * 0.85);
     
-    // 绘制蜿蜒的山路
+    // 绘制长城风格的路径
+    path.lineTo(size.width * 0.1, size.height * 0.7);
+    path.lineTo(size.width * 0.2, size.height * 0.8);
+    path.lineTo(size.width * 0.3, size.height * 0.7);
+    path.lineTo(size.width * 0.4, size.height * 0.8);
+    path.lineTo(size.width * 0.5, size.height * 0.7);
+    path.lineTo(size.width * 0.6, size.height * 0.8);
+    path.lineTo(size.width * 0.7, size.height * 0.7);
+    path.lineTo(size.width * 0.8, size.height * 0.8);
+    path.lineTo(size.width * 0.9, size.height * 0.7);
+    path.lineTo(size.width, size.height * 0.85);
+
+    // 绘制虚线路径
+    final dashPath = Path();
+    const dashWidth = 6.0;
+    const dashSpace = 3.0;
+    double distance = 0.0;
+    
+    for (ui.PathMetric pathMetric in path.computeMetrics()) {
+      while (distance < pathMetric.length) {
+        dashPath.addPath(
+          pathMetric.extractPath(distance, distance + dashWidth),
+          Offset.zero,
+        );
+        distance += dashWidth + dashSpace;
+      }
+    }
+
+    // 绘制进度路径
+    final progressPath = Path();
+    for (ui.PathMetric pathMetric in path.computeMetrics()) {
+      progressPath.addPath(
+        pathMetric.extractPath(0, pathMetric.length * progress),
+        Offset.zero,
+      );
+    }
+
+    // 绘制虚线背景
+    canvas.drawPath(
+      dashPath,
+      Paint()
+        ..color = Colors.white.withOpacity(0.2)
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 2.5,
+    );
+
+    // 绘制已完成的路径
+    canvas.drawPath(progressPath, paint);
+
+    // 绘制路径上的标记点
+    if (progress > 0) {
+      final markerPaint = Paint()
+        ..color = Colors.white
+        ..style = PaintingStyle.fill;
+
+      for (ui.PathMetric pathMetric in path.computeMetrics()) {
+        final tangent = pathMetric.getTangentForOffset(
+          pathMetric.length * progress,
+        );
+        if (tangent != null) {
+          canvas.drawCircle(tangent.position, 3, markerPaint);
+        }
+      }
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => true;
+}
+
+// 添加喜马拉雅风格的绘制器
+class HimalayaPainter extends CustomPainter {
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..color = Colors.white.withOpacity(0.15)
+      ..style = PaintingStyle.fill;
+
+    final path = Path();
+    path.moveTo(0, size.height);
+
+    // 绘制喜马拉雅风格的山脉
+    path.lineTo(size.width * 0.2, size.height * 0.6);
+    path.lineTo(size.width * 0.4, size.height * 0.8);
+    path.lineTo(size.width * 0.6, size.height * 0.4);
+    path.lineTo(size.width * 0.8, size.height * 0.7);
+    path.lineTo(size.width, size.height);
+    path.close();
+
+    canvas.drawPath(path, paint);
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
+}
+
+class HimalayaPathPainter extends CustomPainter {
+  final double progress;
+
+  HimalayaPathPainter({required this.progress});
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..color = Colors.white
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 2.5;
+
+    final path = Path();
+    path.moveTo(0, size.height * 0.85);
+    
+    // 绘制喜马拉雅风格的路径
     path.quadraticBezierTo(
       size.width * 0.2,
       size.height * 0.6,
@@ -528,20 +810,173 @@ class MountainSilhouettePainter extends CustomPainter {
     );
     path.quadraticBezierTo(
       size.width * 0.6,
-      size.height * 0.8,
+      size.height * 0.4,
       size.width * 0.8,
-      size.height * 0.3,
+      size.height * 0.5,
     );
     path.quadraticBezierTo(
       size.width * 0.9,
-      size.height * 0.1,
+      size.height * 0.3,
       size.width,
-      size.height * 0.2,
+      size.height * 0.4,
     );
+
+    // 绘制虚线路径
+    final dashPath = Path();
+    const dashWidth = 6.0;
+    const dashSpace = 3.0;
+    double distance = 0.0;
+    
+    for (ui.PathMetric pathMetric in path.computeMetrics()) {
+      while (distance < pathMetric.length) {
+        dashPath.addPath(
+          pathMetric.extractPath(distance, distance + dashWidth),
+          Offset.zero,
+        );
+        distance += dashWidth + dashSpace;
+      }
+    }
+
+    // 绘制进度路径
+    final progressPath = Path();
+    for (ui.PathMetric pathMetric in path.computeMetrics()) {
+      progressPath.addPath(
+        pathMetric.extractPath(0, pathMetric.length * progress),
+        Offset.zero,
+      );
+    }
+
+    // 绘制虚线背景
+    canvas.drawPath(
+      dashPath,
+      Paint()
+        ..color = Colors.white.withOpacity(0.2)
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 2.5,
+    );
+
+    // 绘制已完成的路径
+    canvas.drawPath(progressPath, paint);
+
+    // 绘制路径上的标记点
+    if (progress > 0) {
+      final markerPaint = Paint()
+        ..color = Colors.white
+        ..style = PaintingStyle.fill;
+
+      for (ui.PathMetric pathMetric in path.computeMetrics()) {
+        final tangent = pathMetric.getTangentForOffset(
+          pathMetric.length * progress,
+        );
+        if (tangent != null) {
+          canvas.drawCircle(tangent.position, 3, markerPaint);
+        }
+      }
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => true;
+}
+
+// 添加金字塔风格的绘制器
+class PyramidPainter extends CustomPainter {
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..color = Colors.white.withOpacity(0.15)
+      ..style = PaintingStyle.fill;
+
+    final path = Path();
+    path.moveTo(0, size.height);
+
+    // 绘制金字塔风格的山脉
+    path.lineTo(size.width * 0.3, size.height * 0.4);
+    path.lineTo(size.width * 0.7, size.height * 0.4);
+    path.lineTo(size.width, size.height);
+    path.close();
 
     canvas.drawPath(path, paint);
   }
 
   @override
   bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
+}
+
+class PyramidPathPainter extends CustomPainter {
+  final double progress;
+
+  PyramidPathPainter({required this.progress});
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..color = Colors.white
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 2.5;
+
+    final path = Path();
+    path.moveTo(0, size.height * 0.85);
+    
+    // 绘制金字塔风格的路径
+    path.lineTo(size.width * 0.3, size.height * 0.5);
+    path.lineTo(size.width * 0.7, size.height * 0.5);
+    path.lineTo(size.width, size.height * 0.85);
+
+    // 绘制虚线路径
+    final dashPath = Path();
+    const dashWidth = 6.0;
+    const dashSpace = 3.0;
+    double distance = 0.0;
+    
+    for (ui.PathMetric pathMetric in path.computeMetrics()) {
+      while (distance < pathMetric.length) {
+        dashPath.addPath(
+          pathMetric.extractPath(distance, distance + dashWidth),
+          Offset.zero,
+        );
+        distance += dashWidth + dashSpace;
+      }
+    }
+
+    // 绘制进度路径
+    final progressPath = Path();
+    for (ui.PathMetric pathMetric in path.computeMetrics()) {
+      progressPath.addPath(
+        pathMetric.extractPath(0, pathMetric.length * progress),
+        Offset.zero,
+      );
+    }
+
+    // 绘制虚线背景
+    canvas.drawPath(
+      dashPath,
+      Paint()
+        ..color = Colors.white.withOpacity(0.2)
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 2.5,
+    );
+
+    // 绘制已完成的路径
+    canvas.drawPath(progressPath, paint);
+
+    // 绘制路径上的标记点
+    if (progress > 0) {
+      final markerPaint = Paint()
+        ..color = Colors.white
+        ..style = PaintingStyle.fill;
+
+      for (ui.PathMetric pathMetric in path.computeMetrics()) {
+        final tangent = pathMetric.getTangentForOffset(
+          pathMetric.length * progress,
+        );
+        if (tangent != null) {
+          canvas.drawCircle(tangent.position, 3, markerPaint);
+        }
+      }
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => true;
 } 
