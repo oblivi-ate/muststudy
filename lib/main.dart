@@ -26,6 +26,7 @@ void main() async {
   var firstObject = ParseObject('FirstClass')
     ..set('message', 'Hey, Parse is now connected!🙂');
   await firstObject.save();
+
   runApp(const MyApp());
 }
 
