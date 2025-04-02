@@ -249,11 +249,11 @@ class _HomeScreenState extends State<HomeScreen> {
     final randomQuote = (quotes..shuffle()).first;
 
     return Container(
-      margin: const EdgeInsets.fromLTRB(20, 12, 20, 0),
-      padding: const EdgeInsets.all(16),
+      margin: const EdgeInsets.symmetric(horizontal: 20),
+      padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
             color: Colors.grey.withOpacity(0.1),
@@ -264,20 +264,20 @@ class _HomeScreenState extends State<HomeScreen> {
       ),
       child: Row(
         children: [
+          // 左侧图片
           Container(
-            width: 80,
-            height: 80,
-            decoration: BoxDecoration(
-              color: AppColors.mint.withOpacity(0.1),
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: Icon(
-              Icons.auto_awesome,
-              size: 40,
-              color: AppColors.mint,
+            width: 100,
+            height: 100,
+            decoration: const BoxDecoration(
+              borderRadius: BorderRadius.all(Radius.circular(20)),
+              image: DecorationImage(
+                image: AssetImage('assets/image copy 2.png'),
+                fit: BoxFit.cover,
+              ),
             ),
           ),
-          const SizedBox(width: 16),
+          const SizedBox(width: 20),
+          // 右侧文字
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -287,7 +287,6 @@ class _HomeScreenState extends State<HomeScreen> {
                   style: const TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.w500,
-                    height: 1.5,
                   ),
                 ),
                 const SizedBox(height: 8),
@@ -296,7 +295,6 @@ class _HomeScreenState extends State<HomeScreen> {
                   style: TextStyle(
                     fontSize: 14,
                     color: Colors.grey[600],
-                    fontStyle: FontStyle.italic,
                   ),
                 ),
               ],
