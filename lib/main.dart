@@ -1,3 +1,4 @@
+import 'package:muststudy/repositories/Userinfo_respositories.dart';
 import 'package:parse_server_sdk_flutter/parse_server_sdk_flutter.dart';
 import 'package:flutter/material.dart';
 import 'screens/home_screen.dart';
@@ -27,9 +28,8 @@ void main() async {
     autoSendSessionId: true,
     debug: true,
   );
-  var firstObject = ParseObject('FirstClass')
-    ..set('message', 'Hey, Parse is now connected!🙂');
-  await firstObject.save();
+
+
 
   runApp(const MyApp());
 }
