@@ -18,7 +18,14 @@ class ProfileScreen extends StatelessWidget {
       body: Stack(
         children: [
           Container(
-            color: const Color(0xFFFFE4D4),
+            height: 300,
+            width: double.infinity,
+            decoration: const BoxDecoration(
+              image: DecorationImage(
+                image: AssetImage('assets/img.png'),
+                fit: BoxFit.cover,
+              ),
+            ),
           ),
           Column(
             children: [
