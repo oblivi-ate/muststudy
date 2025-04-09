@@ -6,8 +6,23 @@ import 'resource_details.dart';
 import '../widgets/search_bar.dart';
 import '../models/resource.dart';
 
-class LearningResourcesScreen extends StatelessWidget {
+class LearningResourcesScreen extends StatefulWidget {
   const LearningResourcesScreen({Key? key}) : super(key: key);
+
+  @override
+  State<LearningResourcesScreen> createState() => _LearningResourcesScreenState();
+}
+
+class _LearningResourcesScreenState extends State<LearningResourcesScreen> {
+  int _selectedCategoryIndex = 0;
+  final List<String> categories = ["全部", "算法", "数据结构", "系统设计", "数据库", "前端开发", "后端开发"];
+
+  // 根据选中的分类筛选资源
+  List<Resource> getFilteredResources(List<Resource> resources) {
+    if (_selectedCategoryIndex == 0) return resources; // 默认显示所有资源
+    final category = categories[_selectedCategoryIndex];
+    return resources.where((resource) => resource.category == category).toList();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -107,14 +122,13 @@ class LearningResourcesScreen extends StatelessWidget {
   }
 
   Widget _buildCategoryChips() {
-    final categories = ["全部", "算法", "数据结构", "系统设计", "数据库", "前端开发", "后端开发"];
     return SizedBox(
       height: 50.0,
       child: ListView.builder(
         scrollDirection: Axis.horizontal,
         itemCount: categories.length,
         itemBuilder: (context, index) {
-          final isSelected = index == 0; // 假设"全部"是默认选中状态
+          final isSelected = index == _selectedCategoryIndex;
           return Padding(
             padding: const EdgeInsets.only(right: 12.0),
             child: Container(
@@ -133,7 +147,11 @@ class LearningResourcesScreen extends StatelessWidget {
                 color: Colors.transparent,
                 child: InkWell(
                   borderRadius: BorderRadius.circular(25),
-                  onTap: () {},
+                  onTap: () {
+                    setState(() {
+                      _selectedCategoryIndex = index;
+                    });
+                  },
                   child: Container(
                     padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
                     child: Text(
@@ -155,6 +173,9 @@ class LearningResourcesScreen extends StatelessWidget {
   }
 
   Widget _buildResourceSection(String title, IconData icon, List<Resource> resources) {
+    final filteredResources = getFilteredResources(resources);
+    if (filteredResources.isEmpty) return const SizedBox.shrink();
+    
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -187,9 +208,9 @@ class LearningResourcesScreen extends StatelessWidget {
           child: ListView.builder(
             padding: const EdgeInsets.symmetric(horizontal: 20.0),
             scrollDirection: Axis.horizontal,
-            itemCount: resources.length,
+            itemCount: filteredResources.length,
             itemBuilder: (context, index) {
-              final resource = resources[index];
+              final resource = filteredResources[index];
               return Container(
                 width: 160,
                 margin: const EdgeInsets.only(right: 16.0),
