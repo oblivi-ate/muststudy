@@ -6,8 +6,23 @@ import 'resource_details.dart';
 import 'problem_details.dart';
 import '../theme/app_theme.dart';
 
-class ForumScreen extends StatelessWidget {
+class ForumScreen extends StatefulWidget {
   const ForumScreen({Key? key}) : super(key: key);
+
+  @override
+  State<ForumScreen> createState() => _ForumScreenState();
+}
+
+class _ForumScreenState extends State<ForumScreen> {
+  int _selectedCategoryIndex = 0;
+  final List<String> categories = ["算法", "数据结构", "系统设计", "数据库", "前端开发", "后端开发"];
+
+  // 根据选中的分类筛选问题
+  List<Problem> getFilteredProblems() {
+    if (_selectedCategoryIndex == 0) return problems; // 默认显示所有问题
+    final category = categories[_selectedCategoryIndex];
+    return problems.where((problem) => problem.tags.contains(category)).toList();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -94,7 +109,7 @@ class ForumScreen extends StatelessWidget {
                         Padding(
                           padding: const EdgeInsets.symmetric(horizontal: 20.0),
                           child: Text(
-                            "热门题目",
+                            _selectedCategoryIndex == 0 ? "热门题目" : "${categories[_selectedCategoryIndex]}题目",
                             style: TextStyle(
                               fontSize: 20.0,
                               fontWeight: FontWeight.w600,
@@ -118,18 +133,18 @@ class ForumScreen extends StatelessWidget {
   }
 
   Widget _buildCategoryChips() {
-    final categories = ["算法", "数据结构", "系统设计", "数据库", "前端开发", "后端开发"];
     return SizedBox(
       height: 50.0,
       child: ListView.builder(
         scrollDirection: Axis.horizontal,
         itemCount: categories.length,
         itemBuilder: (context, index) {
+          final isSelected = index == _selectedCategoryIndex;
           return Padding(
             padding: const EdgeInsets.only(right: 12.0),
             child: Container(
               decoration: BoxDecoration(
-                color: Colors.white,
+                color: isSelected ? AppColors.primary : Colors.white,
                 borderRadius: BorderRadius.circular(25),
                 boxShadow: [
                   BoxShadow(
@@ -143,13 +158,17 @@ class ForumScreen extends StatelessWidget {
                 color: Colors.transparent,
                 child: InkWell(
                   borderRadius: BorderRadius.circular(25),
-                  onTap: () {},
+                  onTap: () {
+                    setState(() {
+                      _selectedCategoryIndex = index;
+                    });
+                  },
                   child: Container(
                     padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
                     child: Text(
                       categories[index],
                       style: TextStyle(
-                        color: AppColors.primary,
+                        color: isSelected ? Colors.white : AppColors.primary,
                         fontSize: 14,
                         fontWeight: FontWeight.w500,
                       ),
@@ -165,13 +184,14 @@ class ForumScreen extends StatelessWidget {
   }
 
   Widget _buildPopularProblems() {
+    final filteredProblems = getFilteredProblems();
     return ListView.builder(
       padding: const EdgeInsets.symmetric(horizontal: 20.0),
       physics: const NeverScrollableScrollPhysics(),
       shrinkWrap: true,
-      itemCount: problems.length,
+      itemCount: filteredProblems.length,
       itemBuilder: (context, index) {
-        final problem = problems[index];
+        final problem = filteredProblems[index];
         return Container(
           margin: const EdgeInsets.only(bottom: 12.0),
           decoration: BoxDecoration(
@@ -250,35 +270,16 @@ class ForumScreen extends StatelessWidget {
                         ),
                       ),
                       const SizedBox(width: 16.0),
-                      Icon(Icons.person_outline, size: 16.0, color: Colors.grey[600]),
+                      Icon(Icons.people_outline, size: 16.0, color: Colors.grey[600]),
                       const SizedBox(width: 4.0),
                       Text(
-                        "提交次数: ${problem.solvedCount}",
+                        "${problem.submissions}人提交",
                         style: TextStyle(
                           color: Colors.grey[600],
                           fontSize: 12.0,
                         ),
                       ),
                     ],
-                  ),
-                  const SizedBox(height: 12.0),
-                  Wrap(
-                    spacing: 8.0,
-                    runSpacing: 8.0,
-                    children: problem.tags.map((tag) => Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 4.0),
-                      decoration: BoxDecoration(
-                        color: AppColors.primary.withOpacity(0.1),
-                        borderRadius: BorderRadius.circular(8.0),
-                      ),
-                      child: Text(
-                        tag,
-                        style: TextStyle(
-                          fontSize: 12.0,
-                          color: AppColors.primary,
-                        ),
-                      ),
-                    )).toList(),
                   ),
                 ],
               ),

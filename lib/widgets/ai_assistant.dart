@@ -1,4 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
+import 'dart:convert';
+import 'package:flutter_markdown/flutter_markdown.dart';
 
 class AIAssistantDialog extends StatefulWidget {
   const AIAssistantDialog({Key? key}) : super(key: key);
@@ -10,6 +13,7 @@ class AIAssistantDialog extends StatefulWidget {
 class _AIAssistantDialogState extends State<AIAssistantDialog> {
   final TextEditingController _messageController = TextEditingController();
   final List<Map<String, String>> _messages = [];
+  bool _isLoading = false;
 
   @override
   void dispose() {
@@ -17,21 +21,60 @@ class _AIAssistantDialogState extends State<AIAssistantDialog> {
     super.dispose();
   }
 
-  void _sendMessage() {
+  Future<String> _getAIResponse(String message) async {
+    const apiKey = 'sk-48a50741461b44f088cf67bb848131cb';
+    const apiUrl = 'https://api.deepseek.com/v1/chat/completions';
+
+    try {
+      final response = await http.post(
+        Uri.parse(apiUrl),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $apiKey',
+        },
+        body: jsonEncode({
+          'model': 'deepseek-chat',
+          'messages': [
+            {'role': 'user', 'content': message}
+          ],
+          'temperature': 0.7,
+        }),
+      );
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        return data['choices'][0]['message']['content'];
+      } else {
+        return '抱歉，我遇到了一些问题。请稍后再试。';
+      }
+    } catch (e) {
+      return '抱歉，我遇到了一些问题。请稍后再试。';
+    }
+  }
+
+  void _sendMessage() async {
     if (_messageController.text.trim().isEmpty) return;
+
+    final userMessage = _messageController.text;
+    _messageController.clear();
 
     setState(() {
       _messages.add({
         'type': 'user',
-        'message': _messageController.text,
+        'message': userMessage,
       });
-      // 模拟AI回复
+      _isLoading = true;
+    });
+
+    final aiResponse = await _getAIResponse(userMessage);
+
+    setState(() {
       _messages.add({
         'type': 'ai',
-        'message': '我是AI助手，正在开发中...',
+        'message': aiResponse,
       });
+      _isLoading = false;
     });
-    _messageController.clear();
   }
 
   @override
@@ -70,25 +113,57 @@ class _AIAssistantDialogState extends State<AIAssistantDialog> {
           Expanded(
             child: ListView.builder(
               padding: const EdgeInsets.all(16),
-              itemCount: _messages.length,
+              itemCount: _messages.length + (_isLoading ? 1 : 0),
               itemBuilder: (context, index) {
+                if (index == _messages.length && _isLoading) {
+                  return const Align(
+                    alignment: Alignment.centerLeft,
+                    child: Padding(
+                      padding: EdgeInsets.all(8.0),
+                      child: CircularProgressIndicator(),
+                    ),
+                  );
+                }
                 final message = _messages[index];
                 final isUser = message['type'] == 'user';
                 return Align(
                   alignment: isUser ? Alignment.centerRight : Alignment.centerLeft,
                   child: Container(
+                    constraints: BoxConstraints(
+                      maxWidth: MediaQuery.of(context).size.width * 0.8,
+                    ),
                     margin: const EdgeInsets.only(bottom: 8),
                     padding: const EdgeInsets.all(12),
                     decoration: BoxDecoration(
                       color: isUser ? Colors.blue : Colors.grey[200],
                       borderRadius: BorderRadius.circular(12),
                     ),
-                    child: Text(
-                      message['message']!,
-                      style: TextStyle(
-                        color: isUser ? Colors.white : Colors.black,
-                      ),
-                    ),
+                    child: isUser
+                        ? Text(
+                            message['message']!,
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 16,
+                            ),
+                          )
+                        : MarkdownBody(
+                            data: message['message']!,
+                            styleSheet: MarkdownStyleSheet(
+                              p: TextStyle(
+                                color: Colors.black,
+                                fontSize: 16,
+                              ),
+                              code: TextStyle(
+                                backgroundColor: Colors.grey[300],
+                                color: Colors.black87,
+                                fontSize: 14,
+                              ),
+                              codeblockDecoration: BoxDecoration(
+                                color: Colors.grey[300],
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                            ),
+                          ),
                   ),
                 );
               },
@@ -119,13 +194,23 @@ class _AIAssistantDialogState extends State<AIAssistantDialog> {
                     decoration: const InputDecoration(
                       hintText: '输入你的问题...',
                       border: InputBorder.none,
+                      contentPadding: EdgeInsets.symmetric(vertical: 8, horizontal: 0),
                     ),
+                    keyboardType: TextInputType.multiline,
+                    maxLines: null,
+                    textInputAction: TextInputAction.newline,
+                    style: const TextStyle(fontSize: 16),
+                    onSubmitted: (value) {
+                      if (!_isLoading) {
+                        _sendMessage();
+                      }
+                    },
                   ),
                 ),
                 IconButton(
                   icon: const Icon(Icons.send),
                   color: Theme.of(context).primaryColor,
-                  onPressed: _sendMessage,
+                  onPressed: _isLoading ? null : _sendMessage,
                 ),
               ],
             ),

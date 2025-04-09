@@ -1,63 +1,113 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import '../theme/app_theme.dart';
 import 'forum_screen.dart';
 import '../widgets/ai_assistant.dart';
+import '../util/places.dart';
+import 'resource_details.dart';
+import 'learning_resources_screen.dart';
 
-class HomeScreen extends StatelessWidget {
+class HomeScreen extends StatefulWidget {
   const HomeScreen({Key? key}) : super(key: key);
 
   @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      body: SafeArea(
-        child: SingleChildScrollView(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              _buildHeader(context),
-              _buildSearchBar(context),
-              _buildQuickActions(context),
-              _buildPopularDestinations(context),
-              _buildRecentActivities(context),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
+  State<HomeScreen> createState() => _HomeScreenState();
+}
 
-  Widget _buildHeader(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(20),
-      child: Row(
+class _HomeScreenState extends State<HomeScreen> {
+  final String _userName = '李同学';
+  final int _todayGoal = 120;
+  final int _todayProgress = 75;
+
+  @override
+  Widget build(BuildContext context) {
+    // 设置状态栏颜色
+    SystemChrome.setSystemUIOverlayStyle(const SystemUiOverlayStyle(
+      statusBarColor: Colors.transparent,
+      statusBarIconBrightness: Brightness.light,
+    ));
+
+    return Scaffold(
+      backgroundColor: Colors.white,
+      body: Stack(
         children: [
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'Hello,',
-                style: TextStyle(
-                  fontSize: 16,
-                  color: Colors.grey[600],
-                ),
+          // 顶部背景图片
+          Container(
+            height: 1000,
+            width: double.infinity,
+            decoration: const BoxDecoration(
+              image: DecorationImage(
+                image: AssetImage('assets/images/home_bg_old.png'),
+                fit: BoxFit.cover,
               ),
-              const Text(
-                '李同学',
-                style: TextStyle(
-                  fontSize: 24,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-            ],
-          ),
-          const Spacer(),
-          CircleAvatar(
-            radius: 24,
-            backgroundColor: AppColors.primary.withOpacity(0.1),
-            child: const Icon(
-              Icons.person_outline,
-              color: AppColors.primary,
             ),
+          ),
+       
+          // 顶部区域
+          Container(
+            padding: const EdgeInsets.fromLTRB(20, 60, 20, 20),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // 欢迎语
+                Text(
+                  '你好，$_userName',
+                  style: const TextStyle(
+                    fontSize: 30,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.green,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          // 可拖拽的内容区域
+          DraggableScrollableSheet(
+            initialChildSize: 0.85,
+            minChildSize: 0.0,
+            maxChildSize: 0.95,
+            builder: (context, scrollController) {
+              return Container(
+                decoration: const BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.vertical(
+                    top: Radius.circular(30),
+                  ),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black12,
+                      blurRadius: 10,
+                      offset: Offset(0, -5),
+                    ),
+                  ],
+                ),
+                child: SingleChildScrollView(
+                  controller: scrollController,
+                  child: Column(
+                    children: [
+                      // 拖拽指示器
+                      Container(
+                        margin: const EdgeInsets.symmetric(vertical: 12),
+                        width: 40,
+                        height: 4,
+                        decoration: BoxDecoration(
+                          color: Colors.grey[300],
+                          borderRadius: BorderRadius.circular(2),
+                        ),
+                      ),
+                      _buildSearchBar(context),
+                      const SizedBox(height: 20),
+                      _buildMotivationCard(context),
+                      const SizedBox(height: 20),
+                      _buildQuickActions(context),
+                      const SizedBox(height: 20),
+                      _buildRecentActivities(context),
+                      const SizedBox(height: 20),
+                    ],
+                  ),
+                ),
+              );
+            },
           ),
         ],
       ),
@@ -147,6 +197,11 @@ class HomeScreen extends StatelessWidget {
                       backgroundColor: Colors.transparent,
                       builder: (context) => const AIAssistantDialog(),
                     );
+                  } else if (action['label'] == '学习资源') {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (context) => const LearningResourcesScreen()),
+                    );
                   }
                 },
                 child: Container(
@@ -183,104 +238,63 @@ class HomeScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildPopularDestinations(BuildContext context) {
+  Widget _buildMotivationCard(BuildContext context) {
+    final quotes = [
+      {'text': '学习不是为了竞争，而是为了成为更好的自己', 'author': '— 孔子'},
+      {'text': '每一个不曾起舞的日子，都是对生命的辜负', 'author': '— 尼采'},
+      {'text': '知识就是力量，行动才是关键', 'author': '— 培根'},
+      {'text': '学习是一个渐进的过程，不要期待一蹴而就', 'author': '— 李白'},
+    ];
+
+    final randomQuote = (quotes..shuffle()).first;
+
     return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 20),
       padding: const EdgeInsets.all(20),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Text(
-            '热门推荐',
-            style: TextStyle(
-              fontSize: 20,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-          const SizedBox(height: 16),
-          SizedBox(
-            height: 180,
-            child: ListView(
-              scrollDirection: Axis.horizontal,
-              children: [
-                _buildDestinationCard(
-                  context,
-                  title: '算法基础',
-                  subtitle: '数据结构与算法',
-                  gradient: AppColors.primaryGradient,
-                  icon: Icons.code,
-                ),
-                _buildDestinationCard(
-                  context,
-                  title: '面试技巧',
-                  subtitle: '求职必备',
-                  gradient: AppColors.secondaryGradient,
-                  icon: Icons.work,
-                ),
-              ],
-            ),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.grey.withOpacity(0.1),
+            spreadRadius: 1,
+            blurRadius: 10,
           ),
         ],
       ),
-    );
-  }
-
-  Widget _buildDestinationCard(
-    BuildContext context, {
-    required String title,
-    required String subtitle,
-    required LinearGradient gradient,
-    required IconData icon,
-  }) {
-    return Container(
-      width: 160,
-      margin: const EdgeInsets.only(right: 16),
-      decoration: BoxDecoration(
-        gradient: gradient,
-        borderRadius: BorderRadius.circular(20),
-      ),
-      child: Stack(
+      child: Row(
         children: [
-          Positioned(
-            right: -20,
-            bottom: -20,
-            child: Icon(
-              icon,
-              size: 100,
-              color: Colors.white.withOpacity(0.2),
+          // 左侧图片
+          Container(
+            width: 100,
+            height: 100,
+            decoration: const BoxDecoration(
+              borderRadius: BorderRadius.all(Radius.circular(20)),
+              image: DecorationImage(
+                image: AssetImage('assets/image copy 2.png'),
+                fit: BoxFit.cover,
+              ),
             ),
           ),
-          Padding(
-            padding: const EdgeInsets.all(20),
+          const SizedBox(width: 20),
+          // 右侧文字
+          Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Container(
-                  padding: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.2),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Icon(
-                    icon,
-                    color: Colors.white,
-                    size: 24,
-                  ),
-                ),
-                const Spacer(),
                 Text(
-                  title,
+                  randomQuote['text']!,
                   style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
+                    fontSize: 16,
+                    fontWeight: FontWeight.w500,
                   ),
                 ),
-                const SizedBox(height: 4),
+                const SizedBox(height: 8),
                 Text(
-                  subtitle,
+                  randomQuote['author']!,
                   style: TextStyle(
-                    color: Colors.white.withOpacity(0.8),
                     fontSize: 14,
+                    color: Colors.grey[600],
                   ),
                 ),
               ],
@@ -356,6 +370,7 @@ class HomeScreen extends StatelessWidget {
             child: Icon(
               icon,
               color: color,
+              size: 24,
             ),
           ),
           const SizedBox(width: 16),
@@ -370,6 +385,7 @@ class HomeScreen extends StatelessWidget {
                     fontWeight: FontWeight.w500,
                   ),
                 ),
+                const SizedBox(height: 4),
                 Text(
                   subtitle,
                   style: TextStyle(

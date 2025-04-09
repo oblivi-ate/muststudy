@@ -7,35 +7,32 @@ import 'screens/achievement_list_screen.dart';
 import 'screens/main_screen.dart';
 import 'screens/resource_details.dart';
 import 'screens/problem_details.dart';
+import 'screens/login_screen.dart';
 import 'util/places.dart';
 import 'theme/app_theme.dart';
 import 'models/resource.dart';
 
-
-
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  const keyApplicationId = 'B3nFoESSc6GUUQHgFCmFzvf7RQKliagLarf7Rs3g';
-  const keyParseServerUrl = 'https://parseapi.back4app.com';
-  const keyClientKey = 'Y43iPlZRj7XgjqTR56PG48PAxhnPgf4QeeSMtWIv';
-
-  // Initialize Parse with debug set to true
-  await Parse().initialize(
-    keyApplicationId,
-    keyParseServerUrl,
-    clientKey: keyClientKey,
-    autoSendSessionId: true,
-    debug: true,
-  );
-
-
+  // 初始化 Parse
+  try {
+    await Parse().initialize(
+      'B3nFoESSc6GUUQHgFCmFzvf7RQKliagLarf7Rs3g',
+      'https://parseapi.back4app.com',
+      clientKey: 'Y43iPlZRj7XgjqTR56PG48PAxhnPgf4QeeSMtWIv',
+      debug: true,
+    );
+    print('Parse 初始化成功');
+  } catch (e) {
+    print('Parse 初始化失败: $e');
+  }
 
   runApp(const MyApp());
 }
 
 class MyApp extends StatelessWidget {
-  const MyApp({super.key});
+  const MyApp({Key? key}) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
@@ -43,10 +40,12 @@ class MyApp extends StatelessWidget {
       title: 'Must Study',
       theme: ThemeData(
         primarySwatch: Colors.blue,
-        scaffoldBackgroundColor: Colors.grey[100],
+        scaffoldBackgroundColor: Colors.white,
       ),
-      home: const MainScreen(),
+      initialRoute: '/login',
       routes: {
+        '/login': (context) => const LoginScreen(),
+        '/home': (context) => const MainScreen(),
         '/achievements': (context) => const AchievementScreen(),
         '/achievements/list': (context) => const AchievementListScreen(),
       },
