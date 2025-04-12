@@ -29,8 +29,8 @@ class _DanmuWidgetState extends State<DanmuWidget> with SingleTickerProviderStat
     '每天进步一点点~',
     '学习使我快乐！',
     '一起加油吧！',
-    '知识就是力量！',
-    '努力就会有收获！',
+    '学软件工程这辈子有了',
+    '澳门科技大学我们喜欢你',
   ];
   
   final List<String> _avatars = [

@@ -37,6 +37,7 @@ dependencies:
   idb_shim: ^2.3.2
   http: ^0.13.6
   flutter_markdown: ^0.6.18
+  google_fonts: ^4.0.4
 
 dev_dependencies:
   flutter_test:
@@ -62,7 +63,6 @@ flutter:
 
   assets:
     - assets/images/
-    - assets/icons/
     - assets/login_bg.png
     - assets/image copy 2.png
     - assets/img.png

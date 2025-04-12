@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../repositories/Userinfo_respositories.dart';
 import '../widgets/danmu_widget.dart';
+import 'package:google_fonts/google_fonts.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({Key? key}) : super(key: key);
@@ -16,6 +17,13 @@ class _LoginScreenState extends State<LoginScreen> {
   bool _isLogin = true;
   final _userinfoRepository = UserinfoRepository();
   bool _isLoading = false;
+
+  TextStyle get _pixelTextStyle => GoogleFonts.pressStart2p(
+        fontSize: 14,
+        color: Colors.white,
+        letterSpacing: 1.0,
+        height: 1.2,
+      );
 
   @override
   Widget build(BuildContext context) {
@@ -56,20 +64,43 @@ class _LoginScreenState extends State<LoginScreen> {
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
                       // Logo或标题
-                      const Text(
+                      Text(
                         "Must Study",
-                        style: TextStyle(
-                          fontSize: 32,
-                          fontWeight: FontWeight.bold,
+                        style: GoogleFonts.pressStart2p(
+                          fontSize: 36,
                           color: Colors.white,
+                          letterSpacing: 2.0,
+                          height: 1.2,
+                          shadows: const [
+                            Shadow(
+                              color: Color(0x4D000000),
+                              offset: Offset(4, 4),
+                              blurRadius: 0,
+                            ),
+                            Shadow(
+                              color: Color(0x4D000000),
+                              offset: Offset(2, 2),
+                              blurRadius: 0,
+                            ),
+                          ],
                         ),
                       ),
                       const SizedBox(height: 40),
                       // 用户名输入框
                       TextFormField(
                         controller: _usernameController,
+                        style: GoogleFonts.pressStart2p(
+                          fontSize: 12,
+                          color: Colors.black,
+                          letterSpacing: 1.0,
+                        ),
                         decoration: InputDecoration(
                           hintText: '用户名',
+                          hintStyle: GoogleFonts.pressStart2p(
+                            fontSize: 12,
+                            color: Colors.grey,
+                            letterSpacing: 1.0,
+                          ),
                           filled: true,
                           fillColor: Colors.white,
                           prefixIcon: const Icon(Icons.person),
@@ -89,9 +120,19 @@ class _LoginScreenState extends State<LoginScreen> {
                       // 密码输入框
                       TextFormField(
                         controller: _passwordController,
+                        style: GoogleFonts.pressStart2p(
+                          fontSize: 12,
+                          color: Colors.black,
+                          letterSpacing: 1.0,
+                        ),
                         obscureText: true,
                         decoration: InputDecoration(
                           hintText: '密码',
+                          hintStyle: GoogleFonts.pressStart2p(
+                            fontSize: 12,
+                            color: Colors.grey,
+                            letterSpacing: 1.0,
+                          ),
                           filled: true,
                           fillColor: Colors.white,
                           prefixIcon: const Icon(Icons.lock),
@@ -120,7 +161,11 @@ class _LoginScreenState extends State<LoginScreen> {
                         },
                         child: Text(
                           _isLogin ? '没有账号?立即注册' : '已有账号?立即登录',
-                          style: const TextStyle(color: Colors.white),
+                          style: GoogleFonts.pressStart2p(
+                            fontSize: 10,
+                            color: Colors.white,
+                            letterSpacing: 1.0,
+                          ),
                         ),
                       ),
                     ],
@@ -158,9 +203,10 @@ class _LoginScreenState extends State<LoginScreen> {
             )
           : Text(
               _isLogin ? '登录' : '注册',
-              style: const TextStyle(
-                fontSize: 18,
-                color: Color(0xFF7CB342),
+              style: GoogleFonts.pressStart2p(
+                fontSize: 14,
+                color: const Color(0xFF7CB342),
+                letterSpacing: 1.0,
               ),
             ),
     );
