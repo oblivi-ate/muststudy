@@ -240,11 +240,52 @@ class _LearningResourcesScreenState extends State<LearningResourcesScreen> {
                     children: [
                       ClipRRect(
                         borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
-                        child: Image.network(
-                          resource.imageUrl,
+                        child: Container(
                           height: 100,
                           width: double.infinity,
-                          fit: BoxFit.cover,
+                          color: Colors.grey[100],
+                          child: Stack(
+                            fit: StackFit.expand,
+                            children: [
+                              // 默认占位图
+                              Icon(
+                                _getIconForCategory(resource.category),
+                                size: 40,
+                                color: Colors.grey[300],
+                              ),
+                              // 如果有本地图片，优先使用本地图片
+                              if (resource.category == "算法")
+                                Image.asset(
+                                  'assets/images/algorithm_icon.png',
+                                  fit: BoxFit.cover,
+                                )
+                              else if (resource.category == "数据结构")
+                                Image.asset(
+                                  'assets/images/data_structure_icon.png',
+                                  fit: BoxFit.cover,
+                                )
+                              else if (resource.category == "系统设计")
+                                Image.asset(
+                                  'assets/images/system_design_icon.png',
+                                  fit: BoxFit.cover,
+                                )
+                              else if (resource.category == "数据库")
+                                Image.asset(
+                                  'assets/images/database_icon.png',
+                                  fit: BoxFit.cover,
+                                )
+                              else if (resource.category == "前端开发")
+                                Image.asset(
+                                  'assets/images/frontend_icon.png',
+                                  fit: BoxFit.cover,
+                                )
+                              else if (resource.category == "后端开发")
+                                Image.asset(
+                                  'assets/images/backend_icon.png',
+                                  fit: BoxFit.cover,
+                                ),
+                            ],
+                          ),
                         ),
                       ),
                       Padding(
@@ -303,5 +344,24 @@ class _LearningResourcesScreenState extends State<LearningResourcesScreen> {
         const SizedBox(height: 20),
       ],
     );
+  }
+
+  IconData _getIconForCategory(String category) {
+    switch (category) {
+      case "算法":
+        return Icons.architecture;
+      case "数据结构":
+        return Icons.data_array;
+      case "系统设计":
+        return Icons.design_services;
+      case "数据库":
+        return Icons.storage;
+      case "前端开发":
+        return Icons.web;
+      case "后端开发":
+        return Icons.dns;
+      default:
+        return Icons.book;
+    }
   }
 } 

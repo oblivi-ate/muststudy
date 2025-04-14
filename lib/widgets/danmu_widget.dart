@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'dart:math' as math;
 import 'dart:async';
+import 'package:google_fonts/google_fonts.dart';
 
 class DanmuWidget extends StatefulWidget {
   final List<Rect> safeAreas; // 添加安全区域参数
@@ -49,6 +50,9 @@ class _DanmuWidgetState extends State<DanmuWidget> with SingleTickerProviderStat
   @override
   void initState() {
     super.initState();
+    // 预加载字体
+    GoogleFonts.pressStart2p();
+    
     _controller = AnimationController(
       vsync: this,
       duration: const Duration(seconds: 10),
@@ -202,10 +206,10 @@ class _DanmuWidgetState extends State<DanmuWidget> with SingleTickerProviderStat
                           const SizedBox(width: 8),
                           Text(
                             item.message,
-                            style: TextStyle(
+                            style: GoogleFonts.pressStart2p(
                               color: item.color,
-                              fontSize: 16,
-                              fontWeight: FontWeight.bold,
+                              fontSize: 12,
+                              letterSpacing: 1.0,
                               shadows: [
                                 Shadow(
                                   color: Colors.black.withOpacity(0.6),
