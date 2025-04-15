@@ -27,35 +27,35 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 
   TextStyle get _pixelTextStyle => GoogleFonts.pressStart2p(
-        fontSize: 14,
+        fontSize: 12,
         color: Colors.white,
         letterSpacing: 1.0,
         height: 1.2,
       );
 
   TextStyle get _pixelTextStyleSmall => GoogleFonts.pressStart2p(
-        fontSize: 14,
+        fontSize: 10,
         color: Colors.white,
         letterSpacing: 1.0,
         height: 1.2,
       );
 
   TextStyle get _pixelTextStyleError => GoogleFonts.pressStart2p(
-        fontSize: 14,
+        fontSize: 12,
         color: Colors.red,
         letterSpacing: 1.0,
         height: 1.2,
       );
 
   TextStyle get _pixelTextStyleInput => GoogleFonts.pressStart2p(
-        fontSize: 14,
+        fontSize: 12,
         color: Colors.black,
         letterSpacing: 1.0,
         height: 1.2,
       );
 
   TextStyle get _pixelTextStyleHint => GoogleFonts.pressStart2p(
-        fontSize: 14,
+        fontSize: 12,
         color: Colors.grey,
         letterSpacing: 1.0,
         height: 1.2,
@@ -102,10 +102,11 @@ class _LoginScreenState extends State<LoginScreen> {
                       // Logo或标题
                       Text(
                         "Must Study",
+                        textAlign: TextAlign.center,
                         style: GoogleFonts.pressStart2p(
-                          fontSize: 46,
+                          fontSize: 35,
                           color: Colors.white,
-                          letterSpacing: 2.0,
+                          letterSpacing: 1,
                           height: 1.2,
                           shadows: const [
                             Shadow(
@@ -121,7 +122,7 @@ class _LoginScreenState extends State<LoginScreen> {
                           ],
                         ),
                       ),
-                      const SizedBox(height: 40),
+                      const SizedBox(height: 70),
                       // 用户名输入框
                       TextFormField(
                         controller: _usernameController,
@@ -146,7 +147,7 @@ class _LoginScreenState extends State<LoginScreen> {
                           ),
                         ),
                       ),
-                      const SizedBox(height: 20),
+                      const SizedBox(height: 24),
                       // 密码输入框
                       TextFormField(
                         controller: _passwordController,
@@ -190,7 +191,7 @@ class _LoginScreenState extends State<LoginScreen> {
                           onTap: _isLoading ? null : _handleSubmit,
                           child: Container(
                             padding: const EdgeInsets.symmetric(
-                              horizontal: 32,
+                              horizontal: 16,
                               vertical: 12,
                             ),
                             decoration: BoxDecoration(
@@ -198,8 +199,8 @@ class _LoginScreenState extends State<LoginScreen> {
                             ),
                             child: _isLoading
                                 ? SizedBox(
-                                    width: 20,
-                                    height: 20,
+                                    width: 10,
+                                    height: 10,
                                     child: CircularProgressIndicator(
                                       strokeWidth: 2,
                                       valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF7CB342)),
@@ -208,7 +209,7 @@ class _LoginScreenState extends State<LoginScreen> {
                                 : Text(
                                     _isLogin ? 'Log in' : 'register',
                                     style: GoogleFonts.pressStart2p(
-                                      fontSize: 14,
+                                      fontSize: 12,
                                       color: const Color(0xFF7CB342),
                                       letterSpacing: 1.0,
                                       height: 1.2,
@@ -217,7 +218,7 @@ class _LoginScreenState extends State<LoginScreen> {
                           ),
                         ),
                       ),
-                      const SizedBox(height: 16),
+
                       // 切换登录/注册模式
                       TextButton(
                         onPressed: () {
