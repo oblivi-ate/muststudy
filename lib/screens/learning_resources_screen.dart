@@ -5,6 +5,7 @@ import '../util/places.dart';
 import 'resource_details.dart';
 import '../widgets/search_bar.dart';
 import '../models/resource.dart';
+import 'package:muststudy/services/navigation_service.dart';
 
 class LearningResourcesScreen extends StatefulWidget {
   const LearningResourcesScreen({Key? key}) : super(key: key);
@@ -228,12 +229,7 @@ class _LearningResourcesScreenState extends State<LearningResourcesScreen> {
                 child: InkWell(
                   borderRadius: BorderRadius.circular(20),
                   onTap: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => ResourceDetails(resource: resource),
-                      ),
-                    );
+                    NavigationService().navigateToResourceDetails(resource);
                   },
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,

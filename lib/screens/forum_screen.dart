@@ -5,6 +5,7 @@ import '../widgets/search_bar.dart';
 import 'resource_details.dart';
 import 'problem_details.dart';
 import '../theme/app_theme.dart';
+import 'package:muststudy/services/navigation_service.dart';
 
 class ForumScreen extends StatefulWidget {
   const ForumScreen({Key? key}) : super(key: key);
@@ -208,12 +209,7 @@ class _ForumScreenState extends State<ForumScreen> {
           child: InkWell(
             borderRadius: BorderRadius.circular(20),
             onTap: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => ProblemDetails(problem: problem),
-                ),
-              );
+              NavigationService().navigateToProblemDetails(problem);
             },
             child: Padding(
               padding: const EdgeInsets.all(16.0),

@@ -3,6 +3,9 @@ import '../repositories/Userinfo_respositories.dart';
 import '../widgets/danmu_widget.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'main_screen.dart';
+import 'package:muststudy/services/navigation_service.dart';
+import 'package:muststudy/routes/route_names.dart';
+import 'package:muststudy/routes/route_guard.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({Key? key}) : super(key: key);
@@ -269,9 +272,10 @@ class _LoginScreenState extends State<LoginScreen> {
         // 登录成功
         if (!mounted) return;
         print('登录成功，准备跳转');
-        Navigator.pushAndRemoveUntil(
-          context,
-          MaterialPageRoute(builder: (context) => const MainScreen()),
+        RouteGuard.setLoggedIn(true);
+        // 使用 Navigator.of(context) 直接跳转
+        Navigator.of(context).pushNamedAndRemoveUntil(
+          RouteNames.home,
           (route) => false,
         );
       } else {

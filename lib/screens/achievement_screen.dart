@@ -4,6 +4,8 @@ import 'dart:ui' as ui;
 import '../models/achievement.dart';
 import '../theme/app_theme.dart';
 import 'achievement_list_screen.dart';
+import 'package:muststudy/services/navigation_service.dart';
+import 'package:muststudy/routes/route_names.dart';
 
 class AchievementScreen extends StatefulWidget {
   const AchievementScreen({Key? key}) : super(key: key);
@@ -366,12 +368,7 @@ class _AchievementScreenState extends State<AchievementScreen> {
                 ),
                 TextButton(
                   onPressed: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => const AchievementListScreen(),
-                      ),
-                    );
+                    NavigationService().navigateTo(RouteNames.achievementList);
                   },
                   child: Row(
                     children: [
