@@ -6,6 +6,7 @@ import '../widgets/ai_assistant.dart';
 import '../util/places.dart';
 import 'resource_details.dart';
 import 'learning_resources_screen.dart';
+import '../repositories/Userinfo_respositories.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({Key? key}) : super(key: key);
@@ -15,9 +16,22 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
-  final String _userName = '李同学';
-  final int _todayGoal = 120;
-  final int _todayProgress = 75;
+  String _userName = ''; // Initialize with an empty string
+  final UserinfoRepository _userinfoRepository = UserinfoRepository(); // Create an instance
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchUserName(); // Fetch the user name when the widget initializes
+  }
+
+  void _fetchUserName() async {
+    // Fetch the user name from the database
+    String fetchedName = await _userinfoRepository.getUserName(1); // Pass the user ID
+    setState(() {
+      _userName = fetchedName;
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -407,4 +421,4 @@ class _HomeScreenState extends State<HomeScreen> {
       ),
     );
   }
-} 
+}

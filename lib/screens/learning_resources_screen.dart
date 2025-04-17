@@ -5,6 +5,8 @@ import '../util/places.dart';
 import 'resource_details.dart';
 import '../widgets/search_bar.dart';
 import '../models/resource.dart';
+import 'package:parse_server_sdk_flutter/parse_server_sdk_flutter.dart';
+import '../repositories/Resource_repository.dart';
 
 class LearningResourcesScreen extends StatefulWidget {
   const LearningResourcesScreen({Key? key}) : super(key: key);
@@ -16,12 +18,31 @@ class LearningResourcesScreen extends StatefulWidget {
 class _LearningResourcesScreenState extends State<LearningResourcesScreen> {
   int _selectedCategoryIndex = 0;
   final List<String> categories = ["全部", "算法", "数据结构", "系统设计", "数据库", "前端开发", "后端开发"];
+  final ResourceRepository _resourceRepository = ResourceRepository();
+  List<ParseObject> _resources = [];
+
+  @override
+  void initState() {
+    super.initState();
+    _loadResources();
+  }
+
+  Future<void> _loadResources() async {
+    try {
+      final resources = await _resourceRepository.fetchResources();
+      setState(() {
+        _resources = resources;
+      });
+    } catch (e) {
+      print('Error loading resources: $e');
+    }
+  }
 
   // 根据选中的分类筛选资源
-  List<Resource> getFilteredResources(List<Resource> resources) {
+  List<ParseObject> getFilteredResources(List<ParseObject> resources) {
     if (_selectedCategoryIndex == 0) return resources; // 默认显示所有资源
     final category = categories[_selectedCategoryIndex];
-    return resources.where((resource) => resource.category == category).toList();
+    return resources.where((resource) => resource.get<String>('type') == category).toList();
   }
 
   @override
@@ -106,9 +127,9 @@ class _LearningResourcesScreenState extends State<LearningResourcesScreen> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         const SizedBox(height: 20),
-                        _buildResourceSection("笔记", Icons.note_alt_outlined, notes),
-                        _buildResourceSection("视频", Icons.play_circle_outline, videos),
-                        _buildResourceSection("教材", Icons.book_outlined, textbooks),
+                        _buildResourceSection("笔记", Icons.note_alt_outlined, "note"),
+                        _buildResourceSection("视频", Icons.play_circle_outline, "video"),
+                        _buildResourceSection("教材", Icons.book_outlined, "textbook"),
                       ],
                     ),
                   ),
@@ -172,8 +193,8 @@ class _LearningResourcesScreenState extends State<LearningResourcesScreen> {
     );
   }
 
-  Widget _buildResourceSection(String title, IconData icon, List<Resource> resources) {
-    final filteredResources = getFilteredResources(resources);
+  Widget _buildResourceSection(String title, IconData icon, String type) {
+    final filteredResources = getFilteredResources(_resources.where((r) => r.get<String>('type') == type).toList());
     if (filteredResources.isEmpty) return const SizedBox.shrink();
     
     return Column(
@@ -241,7 +262,7 @@ class _LearningResourcesScreenState extends State<LearningResourcesScreen> {
                       ClipRRect(
                         borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
                         child: Image.network(
-                          resource.imageUrl,
+                          resource.get<String>('url') ?? 'https://placeholder.com/160x100',
                           height: 100,
                           width: double.infinity,
                           fit: BoxFit.cover,
@@ -253,7 +274,7 @@ class _LearningResourcesScreenState extends State<LearningResourcesScreen> {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
-                              resource.title,
+                              resource.get<String>('title') ?? '未知标题',
                               style: const TextStyle(
                                 fontSize: 14.0,
                                 fontWeight: FontWeight.w600,
@@ -267,7 +288,7 @@ class _LearningResourcesScreenState extends State<LearningResourcesScreen> {
                                 Icon(icon, size: 16.0, color: Colors.grey[600]),
                                 const SizedBox(width: 4),
                                 Text(
-                                  resource.author,
+                                  resource.get<String>('author_name') ?? '未知作者',
                                   style: TextStyle(
                                     fontSize: 12.0,
                                     color: Colors.grey[600],
@@ -283,7 +304,7 @@ class _LearningResourcesScreenState extends State<LearningResourcesScreen> {
                                 borderRadius: BorderRadius.circular(8.0),
                               ),
                               child: Text(
-                                resource.category,
+                                resource.get<String>('type') ?? '未知类型',
                                 style: TextStyle(
                                   fontSize: 12.0,
                                   color: AppColors.primary,
@@ -304,4 +325,4 @@ class _LearningResourcesScreenState extends State<LearningResourcesScreen> {
       ],
     );
   }
-} 
+}

@@ -45,4 +45,15 @@ class UserinfoRepository {
       await user.delete();
     }
   }
+
+  Future<String> getUserName(int userId) async {
+    final query = QueryBuilder<ParseObject>(ParseObject('Userinfo'))
+      ..whereEqualTo('u_id', userId);
+    final response = await query.query();
+    if (response.success && response.results != null && response.results!.isNotEmpty) {
+      final user = response.results!.first as ParseObject;
+      return user.get<String>('u_name') ?? 'Unknown';
+    }
+    return 'Unknown';
+  }
 }

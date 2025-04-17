@@ -1,5 +1,6 @@
 import 'package:parse_server_sdk_flutter/parse_server_sdk_flutter.dart';
 
+
 class MessageRepository {
   Future<void> createMessage(int mid, int senderId, int receiverId,
       String content, DateTime timestamp) async {
@@ -33,7 +34,7 @@ class MessageRepository {
     final response = await query.query();
     if (response.success && response.results != null) {
       final message = response.results!.first as ParseObject;
-      message..set('is_read', true);
+      message.set('is_read', true);
       await message.save();
     }
   }
