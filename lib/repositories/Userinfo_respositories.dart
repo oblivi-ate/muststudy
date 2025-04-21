@@ -1,4 +1,5 @@
 import 'package:parse_server_sdk_flutter/parse_server_sdk_flutter.dart';
+
 class UserinfoRepository {
   Future<void> createUserinfoItem(int id, String name, String password) async {
     final userinfo = ParseObject('Userinfo')
@@ -13,7 +14,6 @@ class UserinfoRepository {
     }
   }
 
-
   Future<List<ParseObject>?> fetchUserinfo() async {
     final query = QueryBuilder<ParseObject>(ParseObject('Userinfo'));
     final response = await query.query();
@@ -21,5 +21,39 @@ class UserinfoRepository {
       return response.results as List<ParseObject>;
     }
     return null;
+  }
+
+  Future<void> updateUserinfo(int id, String newName, String newPassword) async {
+    final query = QueryBuilder<ParseObject>(ParseObject('Userinfo'))
+      ..whereEqualTo('u_id', id);
+    final response = await query.query();
+    if (response.success && response.results != null) {
+      final user = response.results!.first as ParseObject;
+      user
+        ..set('u_name', newName)
+        ..set('u_password', newPassword);
+      await user.save();
+    }
+  }
+
+  Future<void> deleteUserinfo(int id) async {
+    final query = QueryBuilder<ParseObject>(ParseObject('Userinfo'))
+      ..whereEqualTo('u_id', id);
+    final response = await query.query();
+    if (response.success && response.results != null) {
+      final user = response.results!.first as ParseObject;
+      await user.delete();
+    }
+  }
+
+  Future<String> getUserName(int userId) async {
+    final query = QueryBuilder<ParseObject>(ParseObject('Userinfo'))
+      ..whereEqualTo('u_id', userId);
+    final response = await query.query();
+    if (response.success && response.results != null && response.results!.isNotEmpty) {
+      final user = response.results!.first as ParseObject;
+      return user.get<String>('u_name') ?? 'Unknown';
+    }
+    return 'Unknown';
   }
 }

@@ -1,9 +1,12 @@
 import 'package:flutter/material.dart';
 import '../util/places.dart';
 import 'package:intl/intl.dart';
+import 'package:parse_server_sdk_flutter/parse_server_sdk_flutter.dart';
+import '../repositories/Question_respositories.dart';
+import '../repositories/Q_tag_respositories.dart';
 
 class ProblemDetails extends StatefulWidget {
-  final Problem problem;
+  final ParseObject problem;
 
   const ProblemDetails({
     Key? key,
@@ -16,14 +19,40 @@ class ProblemDetails extends StatefulWidget {
 
 class _ProblemDetailsState extends State<ProblemDetails> {
   final TextEditingController _messageController = TextEditingController();
+  final QuestionRepository _questionRepository = QuestionRepository();
+  final QtagRepository _qtagRepository = QtagRepository();
   bool _isLiked = false;
   bool _isBookmarked = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadQuestionDetails();
+  }
+
+  Future<void> _loadQuestionDetails() async {
+    try {
+      // 加载问题详情
+      final questions = await _questionRepository.fetchQuestions();
+      final questionDetails = widget.problem;
+
+      // 加载问题标签
+      final tags = await _qtagRepository.fetchQtag();
+      if (tags != null) {
+        final questionTags = tags.where((tag) => 
+          tag.get<int>('q_id') == widget.problem.id
+        ).toList();
+      }
+    } catch (e) {
+      print('Error loading question details: $e');
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text(widget.problem.title),
+        title: Text(widget.problem.get<String>('q_title') ?? '未知标题'),
         actions: [
           IconButton(
             icon: Icon(_isBookmarked ? Icons.bookmark : Icons.bookmark_border),
@@ -71,19 +100,19 @@ class _ProblemDetailsState extends State<ProblemDetails> {
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
               decoration: BoxDecoration(
-                color: widget.problem.difficulty == "简单"
+                color: widget.problem.get<String>('difficulty') == "简单"
                     ? Colors.green[50]
-                    : widget.problem.difficulty == "中等"
+                    : widget.problem.get<String>('difficulty') == "中等"
                         ? Colors.orange[50]
                         : Colors.red[50],
                 borderRadius: BorderRadius.circular(20),
               ),
               child: Text(
-                widget.problem.difficulty,
+                widget.problem.get<String>('difficulty') ?? '未知难度',
                 style: TextStyle(
-                  color: widget.problem.difficulty == "简单"
+                  color: widget.problem.get<String>('difficulty') == "简单"
                       ? Colors.green[700]
-                      : widget.problem.difficulty == "中等"
+                      : widget.problem.get<String>('difficulty') == "中等"
                           ? Colors.orange[700]
                           : Colors.red[700],
                 ),
@@ -91,7 +120,7 @@ class _ProblemDetailsState extends State<ProblemDetails> {
             ),
             const SizedBox(width: 12),
             Text(
-              "通过率：${widget.problem.successRate.toStringAsFixed(1)}%",
+              "通过率：${(widget.problem.get<num>('success_rate') ?? 0).toStringAsFixed(1)}%",
               style: TextStyle(
                 color: Colors.grey[600],
                 fontSize: 14,
@@ -99,7 +128,7 @@ class _ProblemDetailsState extends State<ProblemDetails> {
             ),
             const SizedBox(width: 12),
             Text(
-              "${widget.problem.submissions}人提交",
+              "${widget.problem.get<int>('submissions') ?? 0}人提交",
               style: TextStyle(
                 color: Colors.grey[600],
                 fontSize: 14,
@@ -111,7 +140,7 @@ class _ProblemDetailsState extends State<ProblemDetails> {
         Wrap(
           spacing: 8,
           runSpacing: 8,
-          children: widget.problem.tags.map((tag) {
+          children: (widget.problem.get<List>('q_tags') ?? []).map<Widget>((tag) {
             return Container(
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
               decoration: BoxDecoration(
@@ -145,7 +174,7 @@ class _ProblemDetailsState extends State<ProblemDetails> {
         ),
         const SizedBox(height: 12),
         Text(
-          widget.problem.description,
+          widget.problem.get<String>('q_description') ?? '暂无描述',
           style: const TextStyle(
             fontSize: 16,
             height: 1.6,

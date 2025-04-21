@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'screens/achievements_screen.dart';
+import 'screens/achievement_screen.dart';
 import 'screens/achievement_list_screen.dart';
 
 class AppRoutes {

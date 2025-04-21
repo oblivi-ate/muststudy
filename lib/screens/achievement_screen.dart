@@ -4,8 +4,9 @@ import 'dart:ui' as ui;
 import '../models/achievement.dart';
 import '../theme/app_theme.dart';
 import 'achievement_list_screen.dart';
-import 'package:muststudy/services/navigation_service.dart';
-import 'package:muststudy/routes/route_names.dart';
+import '../services/navigation_service.dart';
+import '../routes/route_names.dart';
+import '../repositories/Achievement_repository.dart';
 
 class AchievementScreen extends StatefulWidget {
   const AchievementScreen({Key? key}) : super(key: key);
@@ -15,7 +16,29 @@ class AchievementScreen extends StatefulWidget {
 }
 
 class _AchievementScreenState extends State<AchievementScreen> {
+  final AchievementRepository _achievementRepository = AchievementRepository();
+  List<Achievement> _achievements = [];
+  Achievement? _currentAchievement;
   final AchievementManager _manager = AchievementManager();
+
+  @override
+  void initState() {
+    super.initState();
+    _loadAchievements();
+  }
+
+  Future<void> _loadAchievements() async {
+    try {
+      // 临时使用固定用户ID，实际应该从登录用户获取
+      final achievements = await _achievementRepository.fetchAchievements(1);
+      setState(() {
+        _achievements = achievements;
+        _currentAchievement = achievements.isNotEmpty ? achievements.first : null;
+      });
+    } catch (e) {
+      debugPrint('Error loading achievements: $e');
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -99,7 +122,11 @@ class _AchievementScreenState extends State<AchievementScreen> {
   }
 
   Widget _buildCurrentAchievement() {
-    final achievement = _manager.currentAchievement!;
+    if (_currentAchievement == null) {
+      return const Center(child: CircularProgressIndicator());
+    }
+    
+    final achievement = _currentAchievement!;
     
     return Column(
       children: [
@@ -126,7 +153,7 @@ class _AchievementScreenState extends State<AchievementScreen> {
                   gradient: LinearGradient(
                     begin: Alignment.topLeft,
                     end: Alignment.bottomRight,
-                    colors: _getBackgroundColors(achievement.title),
+                    colors: _getBackgroundColors(achievement.get<String>('title') ?? ''),
                   ),
                 ),
               ),
@@ -145,12 +172,12 @@ class _AchievementScreenState extends State<AchievementScreen> {
                       gradient: LinearGradient(
                         begin: Alignment.topCenter,
                         end: Alignment.bottomCenter,
-                        colors: _getMountainColors(achievement.title),
+                        colors: _getMountainColors(achievement.get<String>('title') ?? ''),
                       ),
                     ),
                     child: CustomPaint(
                       size: Size.infinite,
-                      painter: _getMountainPainter(achievement.title),
+                      painter: _getMountainPainter(achievement.get<String>('title') ?? ''),
                     ),
                   ),
                 ),
@@ -158,13 +185,14 @@ class _AchievementScreenState extends State<AchievementScreen> {
               // 根据成就类型设置不同的路径
               CustomPaint(
                 size: const Size(double.infinity, 160),
-                painter: _getPathPainter(achievement.title, achievement.currentProgress / achievement.totalGoal),
+                painter: _getPathPainter(
+                  achievement.get<String>('title') ?? '',
+                  achievement.get<int>('progress') / achievement.get<int>('goal'),
+                ),
               ),
               // 关键节点标记
-              ...achievement.milestones.map((milestone) {
-                final position = milestone.requiredProgress / achievement.totalGoal;
-                return _buildMilestone(position, milestone.requirement, milestone.name);
-              }).toList(),
+              // TODO: 实现里程碑显示
+              // 需要从Parse后端获取里程碑数据
             ],
           ),
         ),
@@ -190,14 +218,14 @@ class _AchievementScreenState extends State<AchievementScreen> {
               Row(
                 children: [
                   Icon(
-                    achievement.icon,
+                    Icons.emoji_events, // 使用默认图标，后续可从icon_name获取对应图标
                     size: 20,
-                    color: achievement.color.withOpacity(0.9),
+                    color: Colors.amber.withOpacity(0.9),
                   ),
                   const SizedBox(width: 8),
                   Expanded(
                     child: Text(
-                      achievement.title,
+                      achievement.get<String>('title') ?? '未知成就',
                       style: const TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.bold,
@@ -976,4 +1004,4 @@ class PyramidPathPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(covariant CustomPainter oldDelegate) => true;
-} 
+}

@@ -1,11 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:parse_server_sdk_flutter/parse_server_sdk_flutter.dart';
 import '../util/places.dart';
 import '../widgets/search_bar.dart';
 import 'resource_details.dart';
 import 'problem_details.dart';
 import '../theme/app_theme.dart';
-import 'package:muststudy/services/navigation_service.dart';
+import '../services/navigation_service.dart';
+import '../repositories/Question_respositories.dart';
+import '../repositories/Q_tag_respositories.dart';
 
 class ForumScreen extends StatefulWidget {
   const ForumScreen({Key? key}) : super(key: key);
@@ -19,6 +22,11 @@ class _ForumScreenState extends State<ForumScreen> {
   String _selectedCollege = '全部';
   final TextEditingController _searchController = TextEditingController();
   String _searchQuery = '';
+  
+  final QuestionRepository _questionRepository = QuestionRepository();
+  final QtagRepository _qtagRepository = QtagRepository();
+  List<ParseObject> _questions = [];
+  List<ParseObject> _tags = [];
 
   // 添加学院列表
   final List<String> _colleges = [
@@ -135,6 +143,8 @@ class _ForumScreenState extends State<ForumScreen> {
         _searchQuery = _searchController.text;
       });
     });
+    _loadQuestions();
+    _loadTags();
   }
 
   @override
@@ -143,13 +153,43 @@ class _ForumScreenState extends State<ForumScreen> {
     super.dispose();
   }
 
+  Future<void> _loadQuestions() async {
+    try {
+      final questions = await _questionRepository.fetchQuestions();
+      setState(() {
+        _questions = questions;
+      });
+    } catch (e) {
+      print('Error loading questions: $e');
+    }
+  }
+
+  Future<void> _loadTags() async {
+    try {
+      final tags = await _qtagRepository.fetchQtag();
+      if (tags != null) {
+        setState(() {
+          _tags = tags;
+        });
+      }
+    } catch (e) {
+      print('Error loading tags: $e');
+    }
+  }
+
   // 修改筛选逻辑
-  List<Problem> _getFilteredProblems() {
-    return problems.where((problem) {
-      final matchesCategory = _selectedCategory == '全部' || problem.tags.contains(_selectedCategory);
+  List<ParseObject> _getFilteredQuestions() {
+    return _questions.where((question) {
+      final tags = question.get<List>('q_tags');
+      final matchesCategory = _selectedCategory == '全部' || 
+          (tags != null && tags.contains(_selectedCategory));
+      
+      final title = question.get<String>('q_title') ?? '';
+      final description = question.get<String>('q_description') ?? '';
       final matchesSearch = _searchQuery.isEmpty ||
-          problem.title.toLowerCase().contains(_searchQuery.toLowerCase()) ||
-          problem.description.toLowerCase().contains(_searchQuery.toLowerCase());
+          title.toLowerCase().contains(_searchQuery.toLowerCase()) ||
+          description.toLowerCase().contains(_searchQuery.toLowerCase());
+          
       return matchesCategory && matchesSearch;
     }).toList();
   }
@@ -323,14 +363,21 @@ class _ForumScreenState extends State<ForumScreen> {
   }
 
   Widget _buildPopularProblems() {
-    final filteredProblems = _getFilteredProblems();
+    if (_questions.isEmpty) {
+      return const Center(child: CircularProgressIndicator());
+    }
+    
+    final filteredQuestions = _getFilteredQuestions();
     
     return ListView.builder(
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
-      itemCount: filteredProblems.length,
+      itemCount: filteredQuestions.length,
       itemBuilder: (context, index) {
-        final problem = filteredProblems[index];
+        final question = filteredQuestions[index];
+        final title = question.get<String>('q_title') ?? '无标题';
+        final description = question.get<String>('q_description') ?? '无描述';
+        final likeCount = question.get<int>('q_like') ?? 0;
         return Container(
           margin: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 8.0),
           decoration: BoxDecoration(
@@ -347,7 +394,12 @@ class _ForumScreenState extends State<ForumScreen> {
           child: InkWell(
             borderRadius: BorderRadius.circular(20),
             onTap: () {
-              NavigationService().navigateToProblemDetails(problem);
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => ProblemDetails(problem: question),
+                ),
+              );
             },
             child: Padding(
               padding: const EdgeInsets.all(16.0),
@@ -359,19 +411,19 @@ class _ForumScreenState extends State<ForumScreen> {
                       Container(
                         padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 4.0),
                         decoration: BoxDecoration(
-                          color: problem.difficulty == "简单"
+                          color: question.get<String>('q_difficulty') == "简单"
                               ? Colors.green[50]
-                              : problem.difficulty == "中等"
+                              : question.get<String>('q_difficulty') == "中等"
                                   ? Colors.orange[50]
                                   : Colors.red[50],
                           borderRadius: BorderRadius.circular(8.0),
                         ),
                         child: Text(
-                          problem.difficulty,
+                          question.get<String>('q_difficulty') ?? '未知',
                           style: TextStyle(
-                            color: problem.difficulty == "简单"
+                            color: question.get<String>('q_difficulty') == "简单"
                                 ? Colors.green[700]
-                                : problem.difficulty == "中等"
+                                : question.get<String>('q_difficulty') == "中等"
                                     ? Colors.orange[700]
                                     : Colors.red[700],
                             fontSize: 12.0,
@@ -382,7 +434,7 @@ class _ForumScreenState extends State<ForumScreen> {
                       const SizedBox(width: 12.0),
                       Expanded(
                         child: Text(
-                          problem.title,
+                          title,
                           style: const TextStyle(
                             fontSize: 16.0,
                             fontWeight: FontWeight.w600,
@@ -397,7 +449,7 @@ class _ForumScreenState extends State<ForumScreen> {
                       Icon(Icons.check_circle_outline, size: 16.0, color: Colors.grey[600]),
                       const SizedBox(width: 4.0),
                       Text(
-                        "通过率: ${(problem.successRate).toStringAsFixed(1)}%",
+                        "通过率: ${((question.get<int>('q_success_count') ?? 0) / (question.get<int>('q_submission_count') ?? 1) * 100).toStringAsFixed(1)}%",
                         style: TextStyle(
                           color: Colors.grey[600],
                           fontSize: 12.0,
@@ -407,7 +459,7 @@ class _ForumScreenState extends State<ForumScreen> {
                       Icon(Icons.people_outline, size: 16.0, color: Colors.grey[600]),
                       const SizedBox(width: 4.0),
                       Text(
-                        "${problem.submissions}人提交",
+                        "${question.get<int>('q_submission_count') ?? 0}人提交",
                         style: TextStyle(
                           color: Colors.grey[600],
                           fontSize: 12.0,

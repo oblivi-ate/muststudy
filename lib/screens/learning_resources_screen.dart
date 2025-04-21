@@ -5,7 +5,9 @@ import '../util/places.dart';
 import 'resource_details.dart';
 import '../widgets/search_bar.dart';
 import '../models/resource.dart';
-import 'package:muststudy/services/navigation_service.dart';
+import '../services/navigation_service.dart';
+import 'package:parse_server_sdk_flutter/parse_server_sdk_flutter.dart';
+import '../repositories/Resource_repository.dart';
 
 class LearningResourcesScreen extends StatefulWidget {
   const LearningResourcesScreen({Key? key}) : super(key: key);
@@ -19,6 +21,8 @@ class _LearningResourcesScreenState extends State<LearningResourcesScreen> {
   String _selectedCollege = '全部';
   final TextEditingController _searchController = TextEditingController();
   String _searchQuery = '';
+  final ResourceRepository _resourceRepository = ResourceRepository();
+  List<ParseObject> _resources = [];
 
   // 添加学院列表
   final List<String> _colleges = [
@@ -135,6 +139,7 @@ class _LearningResourcesScreenState extends State<LearningResourcesScreen> {
         _searchQuery = _searchController.text;
       });
     });
+    _loadResources();
   }
 
   @override
@@ -143,14 +148,31 @@ class _LearningResourcesScreenState extends State<LearningResourcesScreen> {
     super.dispose();
   }
 
+  Future<void> _loadResources() async {
+    try {
+      final resources = await _resourceRepository.fetchResources();
+      setState(() {
+        _resources = resources;
+      });
+    } catch (e) {
+      print('Error loading resources: $e');
+    }
+  }
+
   // 修改筛选逻辑
-  List<Resource> _getFilteredResources(List<Resource> resources) {
-    return resources.where((resource) {
-      final matchesCategory = _selectedCategory == '全部' || resource.category == _selectedCategory;
-      final matchesCollege = _selectedCollege == '全部' || resource.college == _selectedCollege;
+  List<ParseObject> _getFilteredResources() {
+    return _resources.where((resource) {
+      final resourceType = resource.get<String>('type') ?? '';
+      final resourceCollege = resource.get<String>('college') ?? '';
+      final title = resource.get<String>('title') ?? '';
+      final description = resource.get<String>('description') ?? '';
+      
+      final matchesCategory = _selectedCategory == '全部' || resourceType == _selectedCategory;
+      final matchesCollege = _selectedCollege == '全部' || resourceCollege == _selectedCollege;
       final matchesSearch = _searchQuery.isEmpty ||
-          resource.title.toLowerCase().contains(_searchQuery.toLowerCase()) ||
-          resource.description.toLowerCase().contains(_searchQuery.toLowerCase());
+          title.toLowerCase().contains(_searchQuery.toLowerCase()) ||
+          description.toLowerCase().contains(_searchQuery.toLowerCase());
+          
       return matchesCategory && matchesCollege && matchesSearch;
     }).toList();
   }
@@ -200,9 +222,9 @@ class _LearningResourcesScreenState extends State<LearningResourcesScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
+                    const Text(
                       "探索学习资源",
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontSize: 28.0,
                         fontWeight: FontWeight.w600,
                         color: Colors.black87,
@@ -248,30 +270,15 @@ class _LearningResourcesScreenState extends State<LearningResourcesScreen> {
               Expanded(
                 child: Container(
                   width: double.infinity,
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFFFF8F3),
-                    borderRadius: const BorderRadius.vertical(
+                  decoration: const BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.vertical(
                       top: Radius.circular(30),
                     ),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withOpacity(0.05),
-                        blurRadius: 10,
-                        offset: const Offset(0, -2),
-                      ),
-                    ],
                   ),
-                  child: SingleChildScrollView(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const SizedBox(height: 20),
-                        _buildResourceSection("笔记", Icons.note_alt_outlined, notes),
-                        _buildResourceSection("视频", Icons.play_circle_outline, videos),
-                        _buildResourceSection("教材", Icons.book_outlined, textbooks),
-                      ],
-                    ),
-                  ),
+                  child: _resources.isEmpty 
+                      ? const Center(child: CircularProgressIndicator())
+                      : _buildResourcesList(),
                 ),
               ),
             ],
@@ -312,172 +319,132 @@ class _LearningResourcesScreenState extends State<LearningResourcesScreen> {
     );
   }
 
-  Widget _buildResourceSection(String title, IconData icon, List<Resource> resources) {
-    final filteredResources = _getFilteredResources(resources);
-    if (filteredResources.isEmpty) return const SizedBox.shrink();
+  Widget _buildResourcesList() {
+    final filteredResources = _getFilteredResources();
     
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 20.0),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(
-                title,
-                style: TextStyle(
-                  fontSize: 20.0,
-                  fontWeight: FontWeight.w600,
-                  color: Colors.grey[800],
-                ),
+    if (filteredResources.isEmpty) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.search_off, size: 72, color: Colors.grey[400]),
+            const SizedBox(height: 16),
+            Text(
+              "没有找到符合条件的资源",
+              style: TextStyle(
+                fontSize: 18.0,
+                color: Colors.grey[600],
               ),
-              TextButton(
-                onPressed: () {},
-                child: Text(
-                  "查看全部",
-                  style: TextStyle(color: AppColors.primary),
-                ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    return ListView.builder(
+      padding: const EdgeInsets.all(20.0),
+      itemCount: filteredResources.length,
+      itemBuilder: (context, index) {
+        final resource = filteredResources[index];
+        final title = resource.get<String>('title') ?? '无标题';
+        final description = resource.get<String>('description') ?? '无描述';
+        final type = resource.get<String>('type') ?? '未分类';
+        
+        return Container(
+          margin: const EdgeInsets.only(bottom: 16.0),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(16.0),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.05),
+                blurRadius: 8.0,
+                offset: const Offset(0, 2),
               ),
             ],
           ),
-        ),
-        const SizedBox(height: 12),
-        SizedBox(
-          height: 220,
-          child: ListView.builder(
-            padding: const EdgeInsets.symmetric(horizontal: 20.0),
-            scrollDirection: Axis.horizontal,
-            itemCount: filteredResources.length,
-            itemBuilder: (context, index) {
-              final resource = filteredResources[index];
-              return Container(
-                width: 160,
-                margin: const EdgeInsets.only(right: 16.0),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(20),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withOpacity(0.05),
-                      blurRadius: 10,
-                      offset: const Offset(0, 2),
-                    ),
-                  ],
-                ),
-                child: InkWell(
-                  borderRadius: BorderRadius.circular(20),
-                  onTap: () {
-                    NavigationService().navigateToResourceDetails(resource);
-                  },
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      ClipRRect(
-                        borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
-                        child: Container(
-                          height: 100,
-                          width: double.infinity,
-                          color: Colors.grey[100],
-                          child: Stack(
-                            fit: StackFit.expand,
+          child: Material(
+            color: Colors.transparent,
+            child: InkWell(
+              borderRadius: BorderRadius.circular(16.0),
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => ResourceDetails(resource: resource),
+                  ),
+                );
+              },
+              child: Padding(
+                padding: const EdgeInsets.all(16.0),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Container(
+                          width: 60.0,
+                          height: 60.0,
+                          decoration: BoxDecoration(
+                            color: AppColors.primary.withOpacity(0.1),
+                            borderRadius: BorderRadius.circular(12.0),
+                          ),
+                          child: Icon(
+                            _getIconForCategory(type),
+                            color: AppColors.primary,
+                            size: 30.0,
+                          ),
+                        ),
+                        const SizedBox(width: 16.0),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              // 默认占位图
-                              Icon(
-                                _getIconForCategory(resource.category),
-                                size: 40,
-                                color: Colors.grey[300],
-                              ),
-                              // 如果有本地图片，优先使用本地图片
-                              if (resource.category == "算法")
-                                Image.asset(
-                                  'assets/images/algorithm_icon.png',
-                                  fit: BoxFit.cover,
-                                )
-                              else if (resource.category == "数据结构")
-                                Image.asset(
-                                  'assets/images/data_structure_icon.png',
-                                  fit: BoxFit.cover,
-                                )
-                              else if (resource.category == "系统设计")
-                                Image.asset(
-                                  'assets/images/system_design_icon.png',
-                                  fit: BoxFit.cover,
-                                )
-                              else if (resource.category == "数据库")
-                                Image.asset(
-                                  'assets/images/database_icon.png',
-                                  fit: BoxFit.cover,
-                                )
-                              else if (resource.category == "前端开发")
-                                Image.asset(
-                                  'assets/images/frontend_icon.png',
-                                  fit: BoxFit.cover,
-                                )
-                              else if (resource.category == "后端开发")
-                                Image.asset(
-                                  'assets/images/backend_icon.png',
-                                  fit: BoxFit.cover,
+                              Text(
+                                title,
+                                style: const TextStyle(
+                                  fontSize: 18.0,
+                                  fontWeight: FontWeight.w600,
                                 ),
+                              ),
+                              const SizedBox(height: 4.0),
+                              Text(
+                                description,
+                                maxLines: 2,
+                                overflow: TextOverflow.ellipsis,
+                                style: TextStyle(
+                                  fontSize: 14.0,
+                                  color: Colors.grey[600],
+                                ),
+                              ),
+                              const SizedBox(height: 8.0),
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 4.0),
+                                decoration: BoxDecoration(
+                                  color: AppColors.primary.withOpacity(0.1),
+                                  borderRadius: BorderRadius.circular(8.0),
+                                ),
+                                child: Text(
+                                  type,
+                                  style: TextStyle(
+                                    fontSize: 12.0,
+                                    color: AppColors.primary,
+                                  ),
+                                ),
+                              ),
                             ],
                           ),
                         ),
-                      ),
-                      Padding(
-                        padding: const EdgeInsets.all(12.0),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              resource.title,
-                              style: const TextStyle(
-                                fontSize: 14.0,
-                                fontWeight: FontWeight.w600,
-                              ),
-                              maxLines: 2,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                            const SizedBox(height: 8),
-                            Row(
-                              children: [
-                                Icon(icon, size: 16.0, color: Colors.grey[600]),
-                                const SizedBox(width: 4),
-                                Text(
-                                  resource.author,
-                                  style: TextStyle(
-                                    fontSize: 12.0,
-                                    color: Colors.grey[600],
-                                  ),
-                                ),
-                              ],
-                            ),
-                            const SizedBox(height: 8),
-                            Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 4.0),
-                              decoration: BoxDecoration(
-                                color: AppColors.primary.withOpacity(0.1),
-                                borderRadius: BorderRadius.circular(8.0),
-                              ),
-                              child: Text(
-                                resource.category,
-                                style: TextStyle(
-                                  fontSize: 12.0,
-                                  color: AppColors.primary,
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
+                      ],
+                    ),
+                  ],
                 ),
-              );
-            },
+              ),
+            ),
           ),
-        ),
-        const SizedBox(height: 20),
-      ],
+        );
+      },
     );
   }
 
@@ -500,87 +467,3 @@ class _LearningResourcesScreenState extends State<LearningResourcesScreen> {
     }
   }
 }
-
-// 添加搜索代理类
-class ResourceSearchDelegate extends SearchDelegate<Resource> {
-  final List<Resource> resources;
-
-  ResourceSearchDelegate({required this.resources});
-
-  @override
-  List<Widget> buildActions(BuildContext context) {
-    return [
-      IconButton(
-        icon: const Icon(Icons.clear),
-        onPressed: () {
-          query = '';
-        },
-      ),
-    ];
-  }
-
-  @override
-  Widget buildLeading(BuildContext context) {
-    return IconButton(
-      icon: const Icon(Icons.arrow_back),
-      onPressed: () {
-        close(context, Resource(
-          id: '',
-          title: '',
-          description: '',
-          category: '',
-          imageUrl: '',
-          author: '',
-          college: '',
-        ));
-      },
-    );
-  }
-
-  @override
-  Widget buildResults(BuildContext context) {
-    final results = resources.where((resource) {
-      return resource.title.toLowerCase().contains(query.toLowerCase()) ||
-          resource.description.toLowerCase().contains(query.toLowerCase());
-    }).toList();
-
-    return ListView.builder(
-      itemCount: results.length,
-      itemBuilder: (context, index) {
-        final resource = results[index];
-        return ListTile(
-          title: Text(resource.title),
-          subtitle: Text(resource.description),
-          onTap: () {
-            close(context, resource);
-          },
-        );
-      },
-    );
-  }
-
-  @override
-  Widget buildSuggestions(BuildContext context) {
-    final suggestions = query.isEmpty
-        ? []
-        : resources.where((resource) {
-            return resource.title.toLowerCase().contains(query.toLowerCase()) ||
-                resource.description.toLowerCase().contains(query.toLowerCase());
-          }).toList();
-
-    return ListView.builder(
-      itemCount: suggestions.length,
-      itemBuilder: (context, index) {
-        final resource = suggestions[index];
-        return ListTile(
-          title: Text(resource.title),
-          subtitle: Text(resource.description),
-          onTap: () {
-            query = resource.title;
-            showResults(context);
-          },
-        );
-      },
-    );
-  }
-} 

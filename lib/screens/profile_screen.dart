@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../theme/app_theme.dart';
+import '../repositories/Userinfo_respositories.dart';
 
 class ProfileScreen extends StatelessWidget {
   const ProfileScreen({Key? key}) : super(key: key);
@@ -36,6 +37,17 @@ class ProfileScreen extends StatelessWidget {
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
+                      ElevatedButton(
+                        onPressed: () async {
+                          try {
+                            final userinfoRepository = UserinfoRepository();
+                            await userinfoRepository.createUserinfoItem(2, 'za', '123456');
+                          } catch (e) {
+                              print('Error: $e');
+                          }
+                        },
+                        child: const Text('Create User'),
+                      ),
                       const CircleAvatar(
                         radius: 40,
                         backgroundImage: NetworkImage(
@@ -76,6 +88,7 @@ class ProfileScreen extends StatelessWidget {
                                 color: Colors.black87,
                                 fontSize: 12,
                               ),
+
                             ),
                           ],
                         ),
