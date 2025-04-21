@@ -5,8 +5,7 @@ import '../util/places.dart';
 import 'resource_details.dart';
 import '../widgets/search_bar.dart';
 import '../models/resource.dart';
-import 'package:parse_server_sdk_flutter/parse_server_sdk_flutter.dart';
-import '../repositories/Resource_repository.dart';
+import 'package:muststudy/services/navigation_service.dart';
 
 class LearningResourcesScreen extends StatefulWidget {
   const LearningResourcesScreen({Key? key}) : super(key: key);
@@ -18,31 +17,12 @@ class LearningResourcesScreen extends StatefulWidget {
 class _LearningResourcesScreenState extends State<LearningResourcesScreen> {
   int _selectedCategoryIndex = 0;
   final List<String> categories = ["全部", "算法", "数据结构", "系统设计", "数据库", "前端开发", "后端开发"];
-  final ResourceRepository _resourceRepository = ResourceRepository();
-  List<ParseObject> _resources = [];
-
-  @override
-  void initState() {
-    super.initState();
-    _loadResources();
-  }
-
-  Future<void> _loadResources() async {
-    try {
-      final resources = await _resourceRepository.fetchResources();
-      setState(() {
-        _resources = resources;
-      });
-    } catch (e) {
-      print('Error loading resources: $e');
-    }
-  }
 
   // 根据选中的分类筛选资源
-  List<ParseObject> getFilteredResources(List<ParseObject> resources) {
+  List<Resource> getFilteredResources(List<Resource> resources) {
     if (_selectedCategoryIndex == 0) return resources; // 默认显示所有资源
     final category = categories[_selectedCategoryIndex];
-    return resources.where((resource) => resource.get<String>('type') == category).toList();
+    return resources.where((resource) => resource.category == category).toList();
   }
 
   @override
@@ -127,9 +107,9 @@ class _LearningResourcesScreenState extends State<LearningResourcesScreen> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         const SizedBox(height: 20),
-                        _buildResourceSection("笔记", Icons.note_alt_outlined, "note"),
-                        _buildResourceSection("视频", Icons.play_circle_outline, "video"),
-                        _buildResourceSection("教材", Icons.book_outlined, "textbook"),
+                        _buildResourceSection("笔记", Icons.note_alt_outlined, notes),
+                        _buildResourceSection("视频", Icons.play_circle_outline, videos),
+                        _buildResourceSection("教材", Icons.book_outlined, textbooks),
                       ],
                     ),
                   ),
@@ -193,8 +173,8 @@ class _LearningResourcesScreenState extends State<LearningResourcesScreen> {
     );
   }
 
-  Widget _buildResourceSection(String title, IconData icon, String type) {
-    final filteredResources = getFilteredResources(_resources.where((r) => r.get<String>('type') == type).toList());
+  Widget _buildResourceSection(String title, IconData icon, List<Resource> resources) {
+    final filteredResources = getFilteredResources(resources);
     if (filteredResources.isEmpty) return const SizedBox.shrink();
     
     return Column(
@@ -249,23 +229,59 @@ class _LearningResourcesScreenState extends State<LearningResourcesScreen> {
                 child: InkWell(
                   borderRadius: BorderRadius.circular(20),
                   onTap: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => ResourceDetails(resource: resource),
-                      ),
-                    );
+                    NavigationService().navigateToResourceDetails(resource);
                   },
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       ClipRRect(
                         borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
-                        child: Image.network(
-                          resource.get<String>('url') ?? 'https://placeholder.com/160x100',
+                        child: Container(
                           height: 100,
                           width: double.infinity,
-                          fit: BoxFit.cover,
+                          color: Colors.grey[100],
+                          child: Stack(
+                            fit: StackFit.expand,
+                            children: [
+                              // 默认占位图
+                              Icon(
+                                _getIconForCategory(resource.category),
+                                size: 40,
+                                color: Colors.grey[300],
+                              ),
+                              // 如果有本地图片，优先使用本地图片
+                              if (resource.category == "算法")
+                                Image.asset(
+                                  'assets/images/algorithm_icon.png',
+                                  fit: BoxFit.cover,
+                                )
+                              else if (resource.category == "数据结构")
+                                Image.asset(
+                                  'assets/images/data_structure_icon.png',
+                                  fit: BoxFit.cover,
+                                )
+                              else if (resource.category == "系统设计")
+                                Image.asset(
+                                  'assets/images/system_design_icon.png',
+                                  fit: BoxFit.cover,
+                                )
+                              else if (resource.category == "数据库")
+                                Image.asset(
+                                  'assets/images/database_icon.png',
+                                  fit: BoxFit.cover,
+                                )
+                              else if (resource.category == "前端开发")
+                                Image.asset(
+                                  'assets/images/frontend_icon.png',
+                                  fit: BoxFit.cover,
+                                )
+                              else if (resource.category == "后端开发")
+                                Image.asset(
+                                  'assets/images/backend_icon.png',
+                                  fit: BoxFit.cover,
+                                ),
+                            ],
+                          ),
                         ),
                       ),
                       Padding(
@@ -274,7 +290,7 @@ class _LearningResourcesScreenState extends State<LearningResourcesScreen> {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
-                              resource.get<String>('title') ?? '未知标题',
+                              resource.title,
                               style: const TextStyle(
                                 fontSize: 14.0,
                                 fontWeight: FontWeight.w600,
@@ -288,7 +304,7 @@ class _LearningResourcesScreenState extends State<LearningResourcesScreen> {
                                 Icon(icon, size: 16.0, color: Colors.grey[600]),
                                 const SizedBox(width: 4),
                                 Text(
-                                  resource.get<String>('author_name') ?? '未知作者',
+                                  resource.author,
                                   style: TextStyle(
                                     fontSize: 12.0,
                                     color: Colors.grey[600],
@@ -304,7 +320,7 @@ class _LearningResourcesScreenState extends State<LearningResourcesScreen> {
                                 borderRadius: BorderRadius.circular(8.0),
                               ),
                               child: Text(
-                                resource.get<String>('type') ?? '未知类型',
+                                resource.category,
                                 style: TextStyle(
                                   fontSize: 12.0,
                                   color: AppColors.primary,
@@ -325,4 +341,23 @@ class _LearningResourcesScreenState extends State<LearningResourcesScreen> {
       ],
     );
   }
-}
+
+  IconData _getIconForCategory(String category) {
+    switch (category) {
+      case "算法":
+        return Icons.architecture;
+      case "数据结构":
+        return Icons.data_array;
+      case "系统设计":
+        return Icons.design_services;
+      case "数据库":
+        return Icons.storage;
+      case "前端开发":
+        return Icons.web;
+      case "后端开发":
+        return Icons.dns;
+      default:
+        return Icons.book;
+    }
+  }
+} 

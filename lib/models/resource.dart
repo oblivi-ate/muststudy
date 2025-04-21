@@ -3,6 +3,7 @@ class Resource {
   final String author;
   final String category;
   final String imageUrl;
+  final String localImagePath;
   final String duration;
   final int viewCount;
   final double rating;
@@ -12,6 +13,7 @@ class Resource {
     required this.author,
     required this.category,
     required this.imageUrl,
+    this.localImagePath = '',
     this.duration = '',
     this.viewCount = 0,
     this.rating = 0.0,

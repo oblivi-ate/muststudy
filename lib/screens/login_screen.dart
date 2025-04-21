@@ -1,6 +1,11 @@
 import 'package:flutter/material.dart';
 import '../repositories/Userinfo_respositories.dart';
 import '../widgets/danmu_widget.dart';
+import 'package:google_fonts/google_fonts.dart';
+import 'main_screen.dart';
+import 'package:muststudy/services/navigation_service.dart';
+import 'package:muststudy/routes/route_names.dart';
+import 'package:muststudy/routes/route_guard.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({Key? key}) : super(key: key);
@@ -16,6 +21,48 @@ class _LoginScreenState extends State<LoginScreen> {
   bool _isLogin = true;
   final _userinfoRepository = UserinfoRepository();
   bool _isLoading = false;
+
+  @override
+  void initState() {
+    super.initState();
+    // 预加载字体
+    GoogleFonts.pressStart2p();
+  }
+
+  TextStyle get _pixelTextStyle => GoogleFonts.pressStart2p(
+        fontSize: 12,
+        color: Colors.white,
+        letterSpacing: 1.0,
+        height: 1.2,
+      );
+
+  TextStyle get _pixelTextStyleSmall => GoogleFonts.pressStart2p(
+        fontSize: 10,
+        color: Colors.white,
+        letterSpacing: 1.0,
+        height: 1.2,
+      );
+
+  TextStyle get _pixelTextStyleError => GoogleFonts.pressStart2p(
+        fontSize: 12,
+        color: Colors.red,
+        letterSpacing: 1.0,
+        height: 1.2,
+      );
+
+  TextStyle get _pixelTextStyleInput => GoogleFonts.pressStart2p(
+        fontSize: 12,
+        color: Colors.black,
+        letterSpacing: 1.0,
+        height: 1.2,
+      );
+
+  TextStyle get _pixelTextStyleHint => GoogleFonts.pressStart2p(
+        fontSize: 12,
+        color: Colors.grey,
+        letterSpacing: 1.0,
+        height: 1.2,
+      );
 
   @override
   Widget build(BuildContext context) {
@@ -56,61 +103,125 @@ class _LoginScreenState extends State<LoginScreen> {
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
                       // Logo或标题
-                      const Text(
+                      Text(
                         "Must Study",
-                        style: TextStyle(
-                          fontSize: 32,
-                          fontWeight: FontWeight.bold,
+                        textAlign: TextAlign.center,
+                        style: GoogleFonts.pressStart2p(
+                          fontSize: 35,
                           color: Colors.white,
+                          letterSpacing: 1,
+                          height: 1.2,
+                          shadows: const [
+                            Shadow(
+                              color: Color(0x4D000000),
+                              offset: Offset(4, 4),
+                              blurRadius: 0,
+                            ),
+                            Shadow(
+                              color: Color(0x4D000000),
+                              offset: Offset(2, 2),
+                              blurRadius: 0,
+                            ),
+                          ],
                         ),
                       ),
-                      const SizedBox(height: 40),
+                      const SizedBox(height: 70),
                       // 用户名输入框
                       TextFormField(
                         controller: _usernameController,
+                        validator: (value) {
+                          if (value == null || value.isEmpty) {
+                            return 'Please enter username';
+                          }
+                          return null;
+                        },
+                        style: _pixelTextStyleInput,
                         decoration: InputDecoration(
-                          hintText: '用户名',
+                          errorStyle: _pixelTextStyleError,
+                          hintText: 'Username',
+                          hintStyle: _pixelTextStyleHint,
                           filled: true,
                           fillColor: Colors.white,
-                          prefixIcon: const Icon(Icons.person),
+                          prefixIcon: const Icon(Icons.person, size: 24),
+                          contentPadding: const EdgeInsets.symmetric(vertical: 16, horizontal: 16),
                           border: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(12),
                             borderSide: BorderSide.none,
                           ),
                         ),
-                        validator: (value) {
-                          if (value == null || value.isEmpty) {
-                            return '请输入用户名';
-                          }
-                          return null;
-                        },
                       ),
-                      const SizedBox(height: 16),
+                      const SizedBox(height: 24),
                       // 密码输入框
                       TextFormField(
                         controller: _passwordController,
+                        validator: (value) {
+                          if (value == null || value.isEmpty) {
+                            return 'Please enter password';
+                          }
+                          return null;
+                        },
+                        style: _pixelTextStyleInput,
                         obscureText: true,
                         decoration: InputDecoration(
-                          hintText: '密码',
+                          errorStyle: _pixelTextStyleError,
+                          hintText: 'Password',
+                          hintStyle: _pixelTextStyleHint,
                           filled: true,
                           fillColor: Colors.white,
-                          prefixIcon: const Icon(Icons.lock),
+                          prefixIcon: const Icon(Icons.lock, size: 24),
+                          contentPadding: const EdgeInsets.symmetric(vertical: 16, horizontal: 16),
                           border: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(12),
                             borderSide: BorderSide.none,
                           ),
                         ),
-                        validator: (value) {
-                          if (value == null || value.isEmpty) {
-                            return '请输入密码';
-                          }
-                          return null;
-                        },
                       ),
                       const SizedBox(height: 24),
                       // 登录/注册按钮
-                      _buildSubmitButton(),
-                      const SizedBox(height: 16),
+                      Container(
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(12),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withOpacity(0.3),
+                              offset: const Offset(4, 4),
+                              blurRadius: 0,
+                            ),
+                          ],
+                        ),
+                        child: GestureDetector(
+                          onTap: _isLoading ? null : _handleSubmit,
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 16,
+                              vertical: 12,
+                            ),
+                            decoration: BoxDecoration(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: _isLoading
+                                ? SizedBox(
+                                    width: 10,
+                                    height: 10,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                      valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF7CB342)),
+                                    ),
+                                  )
+                                : Text(
+                                    _isLogin ? 'Log in' : 'register',
+                                    style: GoogleFonts.pressStart2p(
+                                      fontSize: 12,
+                                      color: const Color(0xFF7CB342),
+                                      letterSpacing: 1.0,
+                                      height: 1.2,
+                                    ),
+                                  ),
+                          ),
+                        ),
+                      ),
+
                       // 切换登录/注册模式
                       TextButton(
                         onPressed: () {
@@ -119,8 +230,8 @@ class _LoginScreenState extends State<LoginScreen> {
                           });
                         },
                         child: Text(
-                          _isLogin ? '没有账号?立即注册' : '已有账号?立即登录',
-                          style: const TextStyle(color: Colors.white),
+                          _isLogin ? 'No account? Register now' : 'Already have an account? Log in',
+                          style: _pixelTextStyleSmall,
                         ),
                       ),
                     ],
@@ -134,76 +245,67 @@ class _LoginScreenState extends State<LoginScreen> {
     );
   }
 
-  Widget _buildSubmitButton() {
-    return ElevatedButton(
-      onPressed: _isLoading ? null : _handleSubmit,
-      style: ElevatedButton.styleFrom(
-        backgroundColor: Colors.white,
-        padding: const EdgeInsets.symmetric(
-          horizontal: 32,
-          vertical: 12,
-        ),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(12),
-        ),
-      ),
-      child: _isLoading
-          ? const SizedBox(
-              width: 20,
-              height: 20,
-              child: CircularProgressIndicator(
-                strokeWidth: 2,
-                valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF7CB342)),
-              ),
-            )
-          : Text(
-              _isLogin ? '登录' : '注册',
-              style: const TextStyle(
-                fontSize: 18,
-                color: Color(0xFF7CB342),
-              ),
-            ),
-    );
-  }
-
   Future<void> _handleLogin() async {
+    if (!mounted) return;
     setState(() {
       _isLoading = true;
     });
 
     try {
-      // 获取所有用户信息
-      final userList = await _userinfoRepository.fetchUserinfo();
-      
-      if (userList != null) {
-        // 查找匹配的用户
-        bool found = false;
-        for (var user in userList) {
-          if (user.get<String>('u_name') == _usernameController.text &&
-              user.get<String>('u_password') == _passwordController.text) {
-            found = true;
-            break;
-          }
-        }
+      // 测试数据
+      final testUsers = [
+        {'u_name': 'test', 'u_password': '123456'},
+        {'u_name': 'admin', 'u_password': 'admin'},
+      ];
 
-        if (found) {
-          // 登录成功
-          Navigator.pushReplacementNamed(context, '/home');
-        } else {
-          // 登录失败
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('用户名或密码错误')),
-          );
+      // 查找匹配的用户
+      bool found = false;
+      for (var user in testUsers) {
+        if (user['u_name'] == _usernameController.text &&
+            user['u_password'] == _passwordController.text) {
+          found = true;
+          break;
         }
       }
+
+      if (found) {
+        // 登录成功
+        if (!mounted) return;
+        print('登录成功，准备跳转');
+        RouteGuard.setLoggedIn(true);
+        // 使用 Navigator.of(context) 直接跳转
+        Navigator.of(context).pushNamedAndRemoveUntil(
+          RouteNames.home,
+          (route) => false,
+        );
+      } else {
+        // 登录失败
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              'Username or password is incorrect',
+              style: _pixelTextStyleError,
+            ),
+          ),
+        );
+      }
     } catch (e) {
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('登录失败: $e')),
+        SnackBar(
+          content: Text(
+            'Login failed: $e',
+            style: _pixelTextStyleError,
+          ),
+        ),
       );
     } finally {
-      setState(() {
-        _isLoading = false;
-      });
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
     }
   }
 
@@ -223,7 +325,12 @@ class _LoginScreenState extends State<LoginScreen> {
 
         if (isUserExists) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('用户名已存在')),
+            SnackBar(
+              content: Text(
+                'Username already exists',
+                style: _pixelTextStyleError,
+              ),
+            ),
           );
           return;
         }
@@ -237,7 +344,12 @@ class _LoginScreenState extends State<LoginScreen> {
         );
 
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('注册成功，请登录')),
+          SnackBar(
+            content: Text(
+              'Registration successful, please log in',
+              style: _pixelTextStyleError,
+            ),
+          ),
         );
         
         setState(() {
@@ -246,7 +358,12 @@ class _LoginScreenState extends State<LoginScreen> {
       }
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('注册失败: $e')),
+        SnackBar(
+          content: Text(
+            'Registration failed: $e',
+            style: _pixelTextStyleError,
+          ),
+        ),
       );
     } finally {
       setState(() {

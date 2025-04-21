@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../theme/app_theme.dart';
-import 'package:muststudy/repositories/Userinfo_respositories.dart';
 
 class ProfileScreen extends StatelessWidget {
   const ProfileScreen({Key? key}) : super(key: key);
@@ -37,17 +36,6 @@ class ProfileScreen extends StatelessWidget {
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      ElevatedButton(
-                        onPressed: () async {
-                          try {
-                            final userinfoRepository = UserinfoRepository();
-                            await userinfoRepository.createUserinfoItem(2, 'za', '123456');
-                          } catch (e) {
-                              print('Error: $e');
-                          }
-                        },
-                        child: const Text('Create User'),
-                      ),
                       const CircleAvatar(
                         radius: 40,
                         backgroundImage: NetworkImage(
@@ -88,7 +76,6 @@ class ProfileScreen extends StatelessWidget {
                                 color: Colors.black87,
                                 fontSize: 12,
                               ),
-
                             ),
                           ],
                         ),
@@ -99,30 +86,32 @@ class ProfileScreen extends StatelessWidget {
               ),
               // 内容区域
               Expanded(
-                child: Container(
-                  width: double.infinity,
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFFFF8F3),
-                    borderRadius: const BorderRadius.vertical(
-                      top: Radius.circular(30),
-                    ),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withOpacity(0.05),
-                        blurRadius: 10,
-                        offset: const Offset(0, -2),
-                      ),
-                    ],
+                child: ClipRRect(
+                  borderRadius: const BorderRadius.vertical(
+                    top: Radius.circular(30),
                   ),
-                  child: SingleChildScrollView(
-                    child: Column(
-                      children: [
-                        const SizedBox(height: 20),
-                        _buildStatisticsCard(),
-                        const SizedBox(height: 16),
-                        _buildFunctionList(),
-                        const SizedBox(height: 20),
+                  child: Container(
+                    width: double.infinity,
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFFFF8F3),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withOpacity(0.05),
+                          blurRadius: 10,
+                          offset: const Offset(0, -2),
+                        ),
                       ],
+                    ),
+                    child: SingleChildScrollView(
+                      child: Column(
+                        children: [
+                          const SizedBox(height: 20),
+                          _buildStatisticsCard(),
+                          const SizedBox(height: 16),
+                          _buildFunctionList(),
+                          const SizedBox(height: 20),
+                        ],
+                      ),
                     ),
                   ),
                 ),

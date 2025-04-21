@@ -56,7 +56,6 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
             ),
           ),
-       
           // 顶部区域
           Container(
             padding: const EdgeInsets.fromLTRB(20, 60, 20, 20),
@@ -76,52 +75,62 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
           ),
           // 可拖拽的内容区域
-          DraggableScrollableSheet(
-            initialChildSize: 0.85,
-            minChildSize: 0.0,
-            maxChildSize: 0.95,
-            builder: (context, scrollController) {
-              return Container(
-                decoration: const BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.vertical(
-                    top: Radius.circular(30),
-                  ),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black12,
-                      blurRadius: 10,
-                      offset: Offset(0, -5),
+          ClipRRect(
+            borderRadius: const BorderRadius.vertical(
+              top: Radius.circular(30),
+            ),
+            child: DraggableScrollableSheet(
+              initialChildSize: 0.85, // 初始大小为 30%
+              minChildSize: 0.5, // 最小大小为 30%
+              maxChildSize: 0.95, // 最大大小为 95%
+              builder: (context, scrollController) {
+                return Container(
+                  decoration: const BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.vertical(
+                      top: Radius.circular(30),
                     ),
-                  ],
-                ),
-                child: SingleChildScrollView(
-                  controller: scrollController,
-                  child: Column(
-                    children: [
-                      // 拖拽指示器
-                      Container(
-                        margin: const EdgeInsets.symmetric(vertical: 12),
-                        width: 40,
-                        height: 4,
-                        decoration: BoxDecoration(
-                          color: Colors.grey[300],
-                          borderRadius: BorderRadius.circular(2),
-                        ),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black12,
+                        blurRadius: 10,
+                        offset: Offset(0, -5),
                       ),
-                      _buildSearchBar(context),
-                      const SizedBox(height: 20),
-                      _buildMotivationCard(context),
-                      const SizedBox(height: 20),
-                      _buildQuickActions(context),
-                      const SizedBox(height: 20),
-                      _buildRecentActivities(context),
-                      const SizedBox(height: 20),
                     ],
                   ),
-                ),
-              );
-            },
+                  child: SafeArea(
+                    child: SingleChildScrollView(
+                      controller: scrollController,
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                        child: Column(
+                          children: [
+                            // 拖拽指示器
+                            Container(
+                              margin: const EdgeInsets.symmetric(vertical: 12),
+                              width: 40,
+                              height: 4,
+                              decoration: BoxDecoration(
+                                color: Colors.grey[300],
+                                borderRadius: BorderRadius.circular(2),
+                              ),
+                            ),
+                            _buildSearchBar(context),
+                            const SizedBox(height: 20),
+                            _buildMotivationCard(context),
+                            const SizedBox(height: 20),
+                            _buildQuickActions(context),
+                            const SizedBox(height: 20),
+                            _buildRecentActivities(context),
+                            const SizedBox(height: 20),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                );
+              },
+            ),
           ),
         ],
       ),
@@ -174,7 +183,7 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Widget _buildQuickActions(BuildContext context) {
-    final actions = [
+    final List<Map<String, dynamic>> actions = [
       {'icon': Icons.forum_outlined, 'label': '学习论坛', 'color': AppColors.coral},
       {'icon': Icons.chat_outlined, 'label': 'AI助手', 'color': AppColors.mint},
       {'icon': Icons.library_books_outlined, 'label': '学习资源', 'color': AppColors.skyBlue},
@@ -194,58 +203,63 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
           ),
           const SizedBox(height: 16),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: actions.map((action) {
-              return InkWell(
-                onTap: () {
-                  if (action['label'] == '学习论坛') {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(builder: (context) => const ForumScreen()),
-                    );
-                  } else if (action['label'] == 'AI助手') {
-                    showModalBottomSheet(
-                      context: context,
-                      isScrollControlled: true,
-                      backgroundColor: Colors.transparent,
-                      builder: (context) => const AIAssistantDialog(),
-                    );
-                  } else if (action['label'] == '学习资源') {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(builder: (context) => const LearningResourcesScreen()),
-                    );
-                  }
-                },
-                child: Container(
-                  width: 80,
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: (action['color'] as Color).withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(16),
-                  ),
-                  child: Column(
-                    children: [
-                      Icon(
-                        action['icon'] as IconData,
-                        color: action['color'] as Color,
-                        size: 32,
+          SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: Row(
+              children: actions.map((action) {
+                return Padding(
+                  padding: const EdgeInsets.only(right: 16.0),
+                  child: InkWell(
+                    onTap: () {
+                      if (action['label'] == '学习论坛') {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(builder: (context) => const ForumScreen()),
+                        );
+                      } else if (action['label'] == 'AI助手') {
+                        showModalBottomSheet(
+                          context: context,
+                          isScrollControlled: true,
+                          backgroundColor: Colors.transparent,
+                          builder: (context) => const AIAssistantDialog(),
+                        );
+                      } else if (action['label'] == '学习资源') {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(builder: (context) => const LearningResourcesScreen()),
+                        );
+                      }
+                    },
+                    child: Container(
+                      width: 80,
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: (action['color'] as Color).withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(16),
                       ),
-                      const SizedBox(height: 8),
-                      Text(
-                        action['label'] as String,
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: action['color'] as Color,
-                          fontWeight: FontWeight.w500,
-                        ),
+                      child: Column(
+                        children: [
+                          Icon(
+                            action['icon'] as IconData,
+                            color: action['color'] as Color,
+                            size: 32,
+                          ),
+                          const SizedBox(height: 8),
+                          Text(
+                            action['label'] as String,
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: action['color'] as Color,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ],
                       ),
-                    ],
+                    ),
                   ),
-                ),
-              );
-            }).toList(),
+                );
+              }).toList(),
+            ),
           ),
         ],
       ),
