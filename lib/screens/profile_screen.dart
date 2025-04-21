@@ -467,10 +467,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
             icon: Icons.settings_outlined,
             title: '设置',
             onTap: () {
-              // 跳转到设置页面
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('设置功能即将上线')),
-              );
+              Navigator.pushNamed(context, RouteNames.settings);
             },
           ),
           _buildDivider(),

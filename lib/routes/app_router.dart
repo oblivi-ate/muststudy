@@ -8,6 +8,7 @@ import 'package:muststudy/screens/resource_details.dart';
 import 'package:muststudy/screens/forum_screen.dart';
 import 'package:muststudy/screens/problem_details.dart';
 import 'package:muststudy/screens/profile_screen.dart';
+import 'package:muststudy/screens/settings_screen.dart';
 
 // 路由参数类
 class RouteArguments {
@@ -50,7 +51,7 @@ class RouteNames {
   static const String forum = '/forum';
   static const String problemDetails = '/forum/problem';
   static const String profile = '/profile';
-  static const String settings = '/profile/settings';
+  static const String settings = '/settings';
   static const String favorites = '/profile/favorites';
   static const String history = '/profile/history';
   static const String notes = '/profile/notes';
@@ -120,6 +121,8 @@ class AppRouter {
         );
       case RouteNames.profile:
         return RouteTransitions.slideTransition(const ProfileScreen());
+      case RouteNames.settings:
+        return RouteTransitions.slideTransition(const SettingsScreen());
       default:
         return RouteTransitions.fadeTransition(
           Scaffold(
