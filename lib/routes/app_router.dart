@@ -9,6 +9,12 @@ import 'package:muststudy/screens/forum_screen.dart';
 import 'package:muststudy/screens/problem_details.dart';
 import 'package:muststudy/screens/profile_screen.dart';
 import 'package:muststudy/screens/settings_screen.dart';
+import 'package:muststudy/screens/settings_userinfo.dart';
+import 'package:muststudy/screens/settings_account_security.dart';
+import 'package:muststudy/screens/settings_language.dart';
+import 'package:muststudy/screens/settings_learning.dart';
+import 'package:muststudy/screens/settings_help.dart';
+import 'package:muststudy/screens/settings_contact.dart';
 
 // 路由参数类
 class RouteArguments {
@@ -55,6 +61,12 @@ class RouteNames {
   static const String favorites = '/profile/favorites';
   static const String history = '/profile/history';
   static const String notes = '/profile/notes';
+  static const String settingsUserInfo = 'settings_userinfo';
+  static const String settingsAccountSecurity = 'settings_account_security';
+  static const String settingsLanguage = 'settings_language';
+  static const String settingsLearning = 'settings_learning';
+  static const String settingsHelp = 'settings_help';
+  static const String settingsContact = 'settings_contact';
 }
 
 // 路由过渡动画
@@ -123,6 +135,18 @@ class AppRouter {
         return RouteTransitions.slideTransition(const ProfileScreen());
       case RouteNames.settings:
         return RouteTransitions.slideTransition(const SettingsScreen());
+      case 'settings_userinfo':
+        return RouteTransitions.slideTransition(const SettingsUserInfoScreen());
+      case 'settings_account_security':
+        return RouteTransitions.slideTransition(const SettingsAccountSecurityScreen());
+      case 'settings_language':
+        return RouteTransitions.slideTransition(const SettingsLanguageScreen());
+      case 'settings_learning':
+        return RouteTransitions.slideTransition(SettingsLearningScreen());
+      case 'settings_help':
+        return RouteTransitions.slideTransition(const SettingsHelpScreen());
+      case 'settings_contact':
+        return RouteTransitions.slideTransition(const SettingsContactScreen());
       default:
         return RouteTransitions.fadeTransition(
           Scaffold(
