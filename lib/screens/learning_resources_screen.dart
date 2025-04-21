@@ -15,14 +15,144 @@ class LearningResourcesScreen extends StatefulWidget {
 }
 
 class _LearningResourcesScreenState extends State<LearningResourcesScreen> {
-  int _selectedCategoryIndex = 0;
-  final List<String> categories = ["全部", "算法", "数据结构", "系统设计", "数据库", "前端开发", "后端开发"];
+  String _selectedCategory = '全部';
+  String _selectedCollege = '全部';
+  final TextEditingController _searchController = TextEditingController();
+  String _searchQuery = '';
 
-  // 根据选中的分类筛选资源
-  List<Resource> getFilteredResources(List<Resource> resources) {
-    if (_selectedCategoryIndex == 0) return resources; // 默认显示所有资源
-    final category = categories[_selectedCategoryIndex];
-    return resources.where((resource) => resource.category == category).toList();
+  // 添加学院列表
+  final List<String> _colleges = [
+    '全部',
+    '创新工程学院',
+    '商学院',
+    '国际学院',
+  ];
+
+  // 添加不同学院的标签映射
+  final Map<String, List<String>> _collegeCategories = {
+    '全部': [
+      '全部',
+      '数据结构',
+      '算法',
+      '系统设计',
+      '数据库',
+      '前端开发',
+      '后端开发'
+    ],
+    '创新工程学院': [
+      '全部',
+      '数据结构',
+      '算法',
+      '系统设计',
+      '数据库',
+      '前端开发',
+      '后端开发'
+    ],
+    '商学院': [
+      '全部',
+      '会计',
+      '金融',
+      '市场营销',
+      '经济学',
+      '管理学'
+    ],
+    '国际学院': [
+      '全部',
+      '国际贸易',
+      '商务英语',
+      '跨文化管理',
+      '国际金融'
+    ],
+  };
+
+  void _showCollegeSelector(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (BuildContext context) {
+        return Container(
+          padding: const EdgeInsets.symmetric(vertical: 20),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      '选择学院',
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.grey[800],
+                      ),
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.close),
+                      onPressed: () => Navigator.pop(context),
+                    ),
+                  ],
+                ),
+              ),
+              const Divider(),
+              Expanded(
+                child: ListView.builder(
+                  itemCount: _colleges.length,
+                  itemBuilder: (context, index) {
+                    final college = _colleges[index];
+                    return ListTile(
+                      title: Text(college),
+                      trailing: _selectedCollege == college
+                          ? Icon(Icons.check, color: AppColors.primary)
+                          : null,
+                      onTap: () {
+                        setState(() {
+                          _selectedCollege = college;
+                          // 重置分类选择
+                          _selectedCategory = '全部';
+                        });
+                        Navigator.pop(context);
+                      },
+                    );
+                  },
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    _searchController.addListener(() {
+      setState(() {
+        _searchQuery = _searchController.text;
+      });
+    });
+  }
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  // 修改筛选逻辑
+  List<Resource> _getFilteredResources(List<Resource> resources) {
+    return resources.where((resource) {
+      final matchesCategory = _selectedCategory == '全部' || resource.category == _selectedCategory;
+      final matchesCollege = _selectedCollege == '全部' || resource.college == _selectedCollege;
+      final matchesSearch = _searchQuery.isEmpty ||
+          resource.title.toLowerCase().contains(_searchQuery.toLowerCase()) ||
+          resource.description.toLowerCase().contains(_searchQuery.toLowerCase());
+      return matchesCategory && matchesCollege && matchesSearch;
+    }).toList();
   }
 
   @override
@@ -38,9 +168,9 @@ class _LearningResourcesScreenState extends State<LearningResourcesScreen> {
       appBar: AppBar(
         backgroundColor: const Color(0xFFFFE4D4),
         elevation: 0,
-        title: const Text(
-          '学习资源',
-          style: TextStyle(
+        title: Text(
+          _selectedCollege,
+          style: const TextStyle(
             color: Colors.black87,
             fontSize: 20,
             fontWeight: FontWeight.bold,
@@ -48,11 +178,11 @@ class _LearningResourcesScreenState extends State<LearningResourcesScreen> {
         ),
         actions: <Widget>[
           IconButton(
-            icon: const Icon(Icons.notifications_none, color: Colors.black87),
-            onPressed: () {},
+            icon: const Icon(Icons.school, color: Colors.black87),
+            onPressed: () => _showCollegeSelector(context),
           ),
           IconButton(
-            icon: const Icon(Icons.person_outline, color: Colors.black87),
+            icon: const Icon(Icons.notifications_none, color: Colors.black87),
             onPressed: () {},
           ),
         ],
@@ -70,16 +200,45 @@ class _LearningResourcesScreenState extends State<LearningResourcesScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text(
+                    Text(
                       "探索学习资源",
-                      style: TextStyle(
+                      style: const TextStyle(
                         fontSize: 28.0,
                         fontWeight: FontWeight.w600,
                         color: Colors.black87,
                       ),
                     ),
                     const SizedBox(height: 16),
-                    const CustomSearchBar(),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(25),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withOpacity(0.05),
+                            blurRadius: 10,
+                            offset: const Offset(0, 2),
+                          ),
+                        ],
+                      ),
+                      child: TextField(
+                        controller: _searchController,
+                        decoration: InputDecoration(
+                          hintText: '搜索学习资源...',
+                          border: InputBorder.none,
+                          icon: Icon(Icons.search, color: Colors.grey[400]),
+                          suffixIcon: _searchQuery.isNotEmpty
+                              ? IconButton(
+                                  icon: Icon(Icons.clear, color: Colors.grey[400]),
+                                  onPressed: () {
+                                    _searchController.clear();
+                                  },
+                                )
+                              : null,
+                        ),
+                      ),
+                    ),
                     const SizedBox(height: 16),
                     _buildCategoryChips(),
                   ],
@@ -123,58 +282,38 @@ class _LearningResourcesScreenState extends State<LearningResourcesScreen> {
   }
 
   Widget _buildCategoryChips() {
+    // 获取当前选中学院的标签列表
+    final categories = _collegeCategories[_selectedCollege] ?? _collegeCategories['全部']!;
+
     return SizedBox(
       height: 50.0,
-      child: ListView.builder(
+      child: SingleChildScrollView(
         scrollDirection: Axis.horizontal,
-        itemCount: categories.length,
-        itemBuilder: (context, index) {
-          final isSelected = index == _selectedCategoryIndex;
-          return Padding(
-            padding: const EdgeInsets.only(right: 12.0),
-            child: Container(
-              decoration: BoxDecoration(
-                color: isSelected ? AppColors.primary : Colors.white,
-                borderRadius: BorderRadius.circular(25),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.05),
-                    blurRadius: 8,
-                    offset: const Offset(0, 2),
-                  ),
-                ],
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        child: Row(
+          children: categories.map((category) {
+            return Padding(
+              padding: const EdgeInsets.only(right: 8),
+              child: FilterChip(
+                label: Text(category),
+                selected: _selectedCategory == category,
+                selectedColor: AppColors.primary.withOpacity(0.2),
+                checkmarkColor: AppColors.primary,
+                onSelected: (selected) {
+                  setState(() {
+                    _selectedCategory = selected ? category : '全部';
+                  });
+                },
               ),
-              child: Material(
-                color: Colors.transparent,
-                child: InkWell(
-                  borderRadius: BorderRadius.circular(25),
-                  onTap: () {
-                    setState(() {
-                      _selectedCategoryIndex = index;
-                    });
-                  },
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-                    child: Text(
-                      categories[index],
-                      style: TextStyle(
-                        color: isSelected ? Colors.white : AppColors.primary,
-                        fontSize: 14,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-            ),
-          );
-        },
+            );
+          }).toList(),
+        ),
       ),
     );
   }
 
   Widget _buildResourceSection(String title, IconData icon, List<Resource> resources) {
-    final filteredResources = getFilteredResources(resources);
+    final filteredResources = _getFilteredResources(resources);
     if (filteredResources.isEmpty) return const SizedBox.shrink();
     
     return Column(
@@ -359,5 +498,89 @@ class _LearningResourcesScreenState extends State<LearningResourcesScreen> {
       default:
         return Icons.book;
     }
+  }
+}
+
+// 添加搜索代理类
+class ResourceSearchDelegate extends SearchDelegate<Resource> {
+  final List<Resource> resources;
+
+  ResourceSearchDelegate({required this.resources});
+
+  @override
+  List<Widget> buildActions(BuildContext context) {
+    return [
+      IconButton(
+        icon: const Icon(Icons.clear),
+        onPressed: () {
+          query = '';
+        },
+      ),
+    ];
+  }
+
+  @override
+  Widget buildLeading(BuildContext context) {
+    return IconButton(
+      icon: const Icon(Icons.arrow_back),
+      onPressed: () {
+        close(context, Resource(
+          id: '',
+          title: '',
+          description: '',
+          category: '',
+          imageUrl: '',
+          author: '',
+          college: '',
+        ));
+      },
+    );
+  }
+
+  @override
+  Widget buildResults(BuildContext context) {
+    final results = resources.where((resource) {
+      return resource.title.toLowerCase().contains(query.toLowerCase()) ||
+          resource.description.toLowerCase().contains(query.toLowerCase());
+    }).toList();
+
+    return ListView.builder(
+      itemCount: results.length,
+      itemBuilder: (context, index) {
+        final resource = results[index];
+        return ListTile(
+          title: Text(resource.title),
+          subtitle: Text(resource.description),
+          onTap: () {
+            close(context, resource);
+          },
+        );
+      },
+    );
+  }
+
+  @override
+  Widget buildSuggestions(BuildContext context) {
+    final suggestions = query.isEmpty
+        ? []
+        : resources.where((resource) {
+            return resource.title.toLowerCase().contains(query.toLowerCase()) ||
+                resource.description.toLowerCase().contains(query.toLowerCase());
+          }).toList();
+
+    return ListView.builder(
+      itemCount: suggestions.length,
+      itemBuilder: (context, index) {
+        final resource = suggestions[index];
+        return ListTile(
+          title: Text(resource.title),
+          subtitle: Text(resource.description),
+          onTap: () {
+            query = resource.title;
+            showResults(context);
+          },
+        );
+      },
+    );
   }
 } 
