@@ -1,8 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:muststudy/routes/route_names.dart';
-import 'package:muststudy/routes/route_guard.dart';
-import 'package:muststudy/routes/route_transitions.dart';
-import 'package:muststudy/routes/route_arguments.dart';
+import '../routes/app_router.dart';
 
 class NavigationService {
   static final NavigationService _instance = NavigationService._internal();

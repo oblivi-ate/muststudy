@@ -4,8 +4,7 @@ import 'package:parse_server_sdk_flutter/parse_server_sdk_flutter.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../theme/app_theme.dart';
 import '../repositories/Userinfo_respositories.dart';
-import '../routes/route_guard.dart';
-import '../routes/route_names.dart';
+import '../routes/app_router.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({Key? key}) : super(key: key);

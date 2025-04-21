@@ -5,7 +5,7 @@ import '../models/achievement.dart';
 import '../theme/app_theme.dart';
 import 'achievement_list_screen.dart';
 import '../services/navigation_service.dart';
-import '../routes/route_names.dart';
+import '../routes/app_router.dart';
 import '../repositories/Achievement_repository.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:parse_server_sdk_flutter/parse_server_sdk_flutter.dart';

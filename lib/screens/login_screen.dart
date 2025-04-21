@@ -4,8 +4,7 @@ import '../widgets/danmu_widget.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'main_screen.dart';
 import 'package:muststudy/services/navigation_service.dart';
-import 'package:muststudy/routes/route_names.dart';
-import 'package:muststudy/routes/route_guard.dart';
+import '../routes/app_router.dart';
 import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
