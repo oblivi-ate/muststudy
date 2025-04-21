@@ -9,6 +9,7 @@ import '../routes/app_router.dart';
 import '../repositories/Achievement_repository.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:parse_server_sdk_flutter/parse_server_sdk_flutter.dart';
+import '../widgets/app_footer.dart';
 
 class AchievementScreen extends StatefulWidget {
   const AchievementScreen({Key? key}) : super(key: key);
@@ -135,61 +136,32 @@ class _AchievementScreenState extends State<AchievementScreen> {
           ),
         ),
       ),
-      body: Stack(
-        children: [
-          Container(
-            color: const Color(0xFFFFE4D4),
-          ),
-          Column(
-            children: [
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 20.0),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text(
-                      "正在进行的探索",
-                      style: TextStyle(
-                        fontSize: 24.0,
-                        fontWeight: FontWeight.w600,
-                        color: Colors.black87,
-                      ),
-                    ),
-                    const SizedBox(height: 20),
-                    _buildCurrentAchievement(),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 30),
-              Expanded(
-                child: Container(
-                  width: double.infinity,
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFFFF8F3),
-                    borderRadius: const BorderRadius.vertical(
-                      top: Radius.circular(30),
-                    ),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withOpacity(0.05),
-                        blurRadius: 10,
-                        offset: const Offset(0, -2),
-                      ),
-                    ],
-                  ),
-                  child: SingleChildScrollView(
-                    child: Column(
-                      children: [
-                        const SizedBox(height: 20),
-                        _buildAchievementWall(),
-                      ],
+      body: SingleChildScrollView(
+        child: Column(
+          children: [
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 20.0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    "正在进行的探索",
+                    style: TextStyle(
+                      fontSize: 24.0,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.black87,
                     ),
                   ),
-                ),
+                  const SizedBox(height: 20),
+                  _buildCurrentAchievement(),
+                ],
               ),
-            ],
-          ),
-        ],
+            ),
+            const SizedBox(height: 30),
+            _buildAchievementWall(),
+            const AppFooter(),
+          ],
+        ),
       ),
     );
   }

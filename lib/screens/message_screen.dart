@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../theme/app_theme.dart';
+import '../widgets/app_footer.dart';
 
 class MessageScreen extends StatefulWidget {
   const MessageScreen({Key? key}) : super(key: key);
@@ -141,8 +142,11 @@ class _MessageScreenState extends State<MessageScreen> with SingleTickerProvider
 
     return ListView.builder(
       padding: const EdgeInsets.all(16),
-      itemCount: notifications.length,
+      itemCount: notifications.length + 1,
       itemBuilder: (context, index) {
+        if (index == notifications.length) {
+          return const AppFooter();
+        }
         final notification = notifications[index];
         return _buildMessageCard(
           icon: notification['icon'] as IconData,
@@ -183,8 +187,11 @@ class _MessageScreenState extends State<MessageScreen> with SingleTickerProvider
 
     return ListView.builder(
       padding: const EdgeInsets.all(16),
-      itemCount: messages.length,
+      itemCount: messages.length + 1,
       itemBuilder: (context, index) {
+        if (index == messages.length) {
+          return const AppFooter();
+        }
         final message = messages[index];
         return _buildInteractionCard(
           avatar: message['avatar'] as String,

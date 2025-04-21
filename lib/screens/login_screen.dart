@@ -7,6 +7,8 @@ import 'package:muststudy/services/navigation_service.dart';
 import '../routes/app_router.dart';
 import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../widgets/app_footer.dart';
+import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({Key? key}) : super(key: key);
@@ -98,146 +100,176 @@ class _LoginScreenState extends State<LoginScreen> {
             child: Center(
               child: SingleChildScrollView(
                 padding: const EdgeInsets.all(24),
-                child: Form(
-                  key: _formKey,
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      // Logo或标题
-                      Text(
-                        "Must Study",
-                        textAlign: TextAlign.center,
-                        style: GoogleFonts.pressStart2p(
-                          fontSize: 35,
-                          color: Colors.white,
-                          letterSpacing: 1,
-                          height: 1.2,
-                          shadows: const [
-                            Shadow(
-                              color: Color(0x4D000000),
-                              offset: Offset(4, 4),
-                              blurRadius: 0,
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Form(
+                      key: _formKey,
+                      child: Column(
+                        children: [
+                          // Logo或标题
+                          Text(
+                            "Must Study",
+                            textAlign: TextAlign.center,
+                            style: GoogleFonts.pressStart2p(
+                              fontSize: 35,
+                              color: Colors.white,
+                              letterSpacing: 1,
+                              height: 1.2,
+                              shadows: const [
+                                Shadow(
+                                  color: Color(0x4D000000),
+                                  offset: Offset(4, 4),
+                                  blurRadius: 0,
+                                ),
+                                Shadow(
+                                  color: Color(0x4D000000),
+                                  offset: Offset(2, 2),
+                                  blurRadius: 0,
+                                ),
+                              ],
                             ),
-                            Shadow(
-                              color: Color(0x4D000000),
-                              offset: Offset(2, 2),
-                              blurRadius: 0,
-                            ),
-                          ],
-                        ),
-                      ),
-                      const SizedBox(height: 70),
-                      // 用户名输入框
-                      TextFormField(
-                        controller: _usernameController,
-                        validator: (value) {
-                          if (value == null || value.isEmpty) {
-                            return 'Please enter username';
-                          }
-                          return null;
-                        },
-                        style: _pixelTextStyleInput,
-                        decoration: InputDecoration(
-                          errorStyle: _pixelTextStyleError,
-                          hintText: 'Username',
-                          hintStyle: _pixelTextStyleHint,
-                          filled: true,
-                          fillColor: Colors.white,
-                          prefixIcon: const Icon(Icons.person, size: 24),
-                          contentPadding: const EdgeInsets.symmetric(vertical: 16, horizontal: 16),
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(12),
-                            borderSide: BorderSide.none,
                           ),
-                        ),
-                      ),
-                      const SizedBox(height: 24),
-                      // 密码输入框
-                      TextFormField(
-                        controller: _passwordController,
-                        validator: (value) {
-                          if (value == null || value.isEmpty) {
-                            return 'Please enter password';
-                          }
-                          return null;
-                        },
-                        style: _pixelTextStyleInput,
-                        obscureText: true,
-                        decoration: InputDecoration(
-                          errorStyle: _pixelTextStyleError,
-                          hintText: 'Password',
-                          hintStyle: _pixelTextStyleHint,
-                          filled: true,
-                          fillColor: Colors.white,
-                          prefixIcon: const Icon(Icons.lock, size: 24),
-                          contentPadding: const EdgeInsets.symmetric(vertical: 16, horizontal: 16),
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(12),
-                            borderSide: BorderSide.none,
+                          const SizedBox(height: 40),
+                          // 用户名输入框
+                          TextFormField(
+                            controller: _usernameController,
+                            validator: (value) {
+                              if (value == null || value.isEmpty) {
+                                return 'Please enter username';
+                              }
+                              return null;
+                            },
+                            style: _pixelTextStyleInput,
+                            decoration: InputDecoration(
+                              errorStyle: _pixelTextStyleError,
+                              hintText: 'Username',
+                              hintStyle: _pixelTextStyleHint,
+                              filled: true,
+                              fillColor: Colors.white,
+                              prefixIcon: const Icon(Icons.person, size: 24),
+                              contentPadding: const EdgeInsets.symmetric(vertical: 16, horizontal: 16),
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(12),
+                                borderSide: BorderSide.none,
+                              ),
+                            ),
                           ),
-                        ),
-                      ),
-                      const SizedBox(height: 24),
-                      // 登录/注册按钮
-                      Container(
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.circular(12),
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black.withOpacity(0.3),
-                              offset: const Offset(4, 4),
-                              blurRadius: 0,
+                          const SizedBox(height: 24),
+                          // 密码输入框
+                          TextFormField(
+                            controller: _passwordController,
+                            validator: (value) {
+                              if (value == null || value.isEmpty) {
+                                return 'Please enter password';
+                              }
+                              return null;
+                            },
+                            style: _pixelTextStyleInput,
+                            obscureText: true,
+                            decoration: InputDecoration(
+                              errorStyle: _pixelTextStyleError,
+                              hintText: 'Password',
+                              hintStyle: _pixelTextStyleHint,
+                              filled: true,
+                              fillColor: Colors.white,
+                              prefixIcon: const Icon(Icons.lock, size: 24),
+                              contentPadding: const EdgeInsets.symmetric(vertical: 16, horizontal: 16),
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(12),
+                                borderSide: BorderSide.none,
+                              ),
                             ),
-                          ],
-                        ),
-                        child: GestureDetector(
-                          onTap: _isLoading ? null : _handleSubmit,
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 16,
-                              vertical: 12,
-                            ),
+                          ),
+                          const SizedBox(height: 24),
+                          // 登录/注册按钮
+                          Container(
                             decoration: BoxDecoration(
+                              color: Colors.white,
                               borderRadius: BorderRadius.circular(12),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.black.withOpacity(0.3),
+                                  offset: const Offset(4, 4),
+                                  blurRadius: 0,
+                                ),
+                              ],
                             ),
-                            child: _isLoading
-                                ? SizedBox(
-                                    width: 10,
-                                    height: 10,
-                                    child: CircularProgressIndicator(
-                                      strokeWidth: 2,
-                                      valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF7CB342)),
-                                    ),
-                                  )
-                                : Text(
-                                    _isLogin ? 'Log in' : 'register',
-                                    style: GoogleFonts.pressStart2p(
-                                      fontSize: 12,
-                                      color: const Color(0xFF7CB342),
-                                      letterSpacing: 1.0,
-                                      height: 1.2,
-                                    ),
-                                  ),
+                            child: GestureDetector(
+                              onTap: _isLoading ? null : _handleSubmit,
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 16,
+                                  vertical: 12,
+                                ),
+                                decoration: BoxDecoration(
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                child: _isLoading
+                                    ? SizedBox(
+                                        width: 10,
+                                        height: 10,
+                                        child: CircularProgressIndicator(
+                                          strokeWidth: 2,
+                                          valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF7CB342)),
+                                        ),
+                                      )
+                                    : Text(
+                                        _isLogin ? 'Log in' : 'register',
+                                        style: GoogleFonts.pressStart2p(
+                                          fontSize: 12,
+                                          color: const Color(0xFF7CB342),
+                                          letterSpacing: 1.0,
+                                          height: 1.2,
+                                        ),
+                                      ),
+                              ),
+                            ),
                           ),
-                        ),
+                          // 切换登录/注册模式
+                          TextButton(
+                            onPressed: () {
+                              setState(() {
+                                _isLogin = !_isLogin;
+                              });
+                            },
+                            child: Text(
+                              _isLogin ? 'No account? Register now' : 'Already have an account? Log in',
+                              style: _pixelTextStyleSmall,
+                            ),
+                          ),
+                        ],
                       ),
-
-                      // 切换登录/注册模式
-                      TextButton(
-                        onPressed: () {
-                          setState(() {
-                            _isLogin = !_isLogin;
-                          });
-                        },
-                        child: Text(
-                          _isLogin ? 'No account? Register now' : 'Already have an account? Log in',
-                          style: _pixelTextStyleSmall,
-                        ),
-                      ),
-                    ],
-                  ),
+                    ),
+                    const SizedBox(height: 50), // 添加间距
+                  ],
                 ),
+              ),
+            ),
+          ),
+          // 自定义底部图标
+          Positioned(
+            bottom: 0,
+            left: 0,
+            right: 0,
+            child: Padding(
+              padding: const EdgeInsets.all(16.0),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(FontAwesomeIcons.graduationCap, size: 24, color: Colors.white),
+                  const SizedBox(width: 8),
+                  Text(
+                    'MUSTSTUDY v1.0',
+                    style: GoogleFonts.getFont(
+                      'Press Start 2P',
+                      fontSize: 12,
+                      fontWeight: FontWeight.bold,
+                      fontStyle: FontStyle.italic,
+                      color: Colors.white,
+                    ),
+                  ),
+                ],
               ),
             ),
           ),
