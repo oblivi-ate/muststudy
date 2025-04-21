@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:parse_server_sdk_flutter/parse_server_sdk_flutter.dart';
 
 class Achievement {
   final String title;
@@ -22,6 +23,19 @@ class Achievement {
   });
 
   double get progressPercentage => currentProgress / totalGoal;
+
+  static Achievement fromParseObject(ParseObject parseObject) {
+    return Achievement(
+      title: parseObject.get<String>('title') ?? '',
+      icon: Icons.star,
+      color: Colors.blue,
+      isLocked: parseObject.get<bool>('isLocked') ?? true,
+      currentProgress: parseObject.get<int>('progress') ?? 0,
+      totalGoal: parseObject.get<int>('goal') ?? 100,
+      description: parseObject.get<String>('description') ?? '',
+      milestones: [],
+    );
+  }
 
   factory Achievement.fromJson(Map<String, dynamic> json) {
     return Achievement(

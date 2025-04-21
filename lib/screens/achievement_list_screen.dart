@@ -1,9 +1,91 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../theme/app_theme.dart';
+import '../models/achievement.dart';
+import '../repositories/Achievement_repository.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:parse_server_sdk_flutter/parse_server_sdk_flutter.dart';
 
-class AchievementListScreen extends StatelessWidget {
+class AchievementListScreen extends StatefulWidget {
   const AchievementListScreen({Key? key}) : super(key: key);
+
+  @override
+  State<AchievementListScreen> createState() => _AchievementListScreenState();
+}
+
+class _AchievementListScreenState extends State<AchievementListScreen> {
+  final AchievementRepository _achievementRepository = AchievementRepository();
+  List<Achievement> _achievements = [];
+  bool _isLoading = true;
+  int _totalAchievements = 0;
+  int _unlockedAchievements = 0;
+  
+  @override
+  void initState() {
+    super.initState();
+    _loadAchievements();
+  }
+  
+  Future<void> _loadAchievements() async {
+    setState(() {
+      _isLoading = true;
+    });
+    
+    try {
+      // 从SharedPreferences获取当前登录的用户信息
+      final prefs = await SharedPreferences.getInstance();
+      final username = prefs.getString('currentUsername') ?? '';
+      
+      if (username.isNotEmpty) {
+        // 获取用户ID
+        final query = QueryBuilder<ParseObject>(ParseObject('Userinfo'))
+          ..whereEqualTo('u_name', username);
+        final userResponse = await query.query();
+        
+        int userId = 1; // 默认使用ID为1
+        
+        if (userResponse.success && userResponse.results != null && userResponse.results!.isNotEmpty) {
+          final userObj = userResponse.results!.first as ParseObject;
+          userId = userObj.get<int>('u_id') ?? 1;
+        }
+        
+        // 使用用户ID获取成就
+        final parseAchievements = await _achievementRepository.fetchAchievements(userId);
+        
+        if (parseAchievements.isNotEmpty) {
+          final achievements = parseAchievements.map((parseObj) => Achievement.fromParseObject(parseObj)).toList();
+          _updateAchievementStats(achievements);
+          setState(() {
+            _achievements = achievements;
+            _isLoading = false;
+          });
+        } else {
+          // 如果没有成就数据，使用默认成就
+          setState(() {
+            _achievements = [];
+            _isLoading = false;
+          });
+        }
+      } else {
+        // 未登录，使用默认成就
+        setState(() {
+          _achievements = [];
+          _isLoading = false;
+        });
+      }
+    } catch (e) {
+      debugPrint('Error loading achievements: $e');
+      setState(() {
+        _achievements = [];
+        _isLoading = false;
+      });
+    }
+  }
+  
+  void _updateAchievementStats(List<Achievement> achievements) {
+    _totalAchievements = achievements.length;
+    _unlockedAchievements = achievements.where((a) => !a.isLocked).length;
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -30,7 +112,9 @@ class AchievementListScreen extends StatelessWidget {
           ),
         ),
       ),
-      body: Stack(
+      body: _isLoading
+      ? const Center(child: CircularProgressIndicator())
+      : Stack(
         children: [
           Container(
             color: const Color(0xFFFFE4D4),
@@ -59,14 +143,9 @@ class AchievementListScreen extends StatelessWidget {
                   ),
                   child: SingleChildScrollView(
                     padding: const EdgeInsets.symmetric(vertical: 30),
-                    child: Column(
-                      children: [
-                        _buildAchievementCategory('亚洲探险', _asiaAchievements),
-                        _buildAchievementCategory('欧洲探险', _europeAchievements),
-                        _buildAchievementCategory('美洲探险', _americaAchievements),
-                        _buildAchievementCategory('大洋洲探险', _oceaniaAchievements),
-                      ],
-                    ),
+                    child: _achievements.isEmpty
+                    ? _buildDefaultCategories()
+                    : _buildUserAchievements(),
                   ),
                 ),
               ),
@@ -78,22 +157,136 @@ class AchievementListScreen extends StatelessWidget {
   }
 
   Widget _buildAchievementStats() {
+    final completionPercentage = _totalAchievements > 0 
+        ? (_unlockedAchievements / _totalAchievements * 100).toStringAsFixed(2) 
+        : '0.00';
+    
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceAround,
       children: [
-        _buildStatItem('已获得成就', '1/16', Icons.emoji_events_outlined),
+        _buildStatItem('已获得成就', '$_unlockedAchievements/$_totalAchievements', Icons.emoji_events_outlined),
         Container(
           width: 1,
           height: 40,
           color: Colors.black12,
         ),
-        _buildStatItem('完成度', '6.25%', Icons.pie_chart_outline),
+        _buildStatItem('完成度', '$completionPercentage%', Icons.pie_chart_outline),
         Container(
           width: 1,
           height: 40,
           color: Colors.black12,
         ),
-        _buildStatItem('探险点数', '100', Icons.star_outline),
+        _buildStatItem('探险点数', '${_unlockedAchievements * 100}', Icons.star_outline),
+      ],
+    );
+  }
+  
+  Widget _buildUserAchievements() {
+    return ListView.builder(
+      padding: const EdgeInsets.symmetric(horizontal: 20),
+      physics: const NeverScrollableScrollPhysics(),
+      shrinkWrap: true,
+      itemCount: _achievements.length,
+      itemBuilder: (context, index) {
+        final achievement = _achievements[index];
+        return Container(
+          margin: const EdgeInsets.only(bottom: 15),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(15),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.05),
+                blurRadius: 10,
+                offset: const Offset(0, 2),
+              ),
+            ],
+          ),
+          child: Stack(
+            children: [
+              if (achievement.isLocked)
+                Container(
+                  decoration: BoxDecoration(
+                    color: Colors.black.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(15),
+                  ),
+                ),
+              Padding(
+                padding: const EdgeInsets.all(15),
+                child: Row(
+                  children: [
+                    Container(
+                      width: 50,
+                      height: 50,
+                      decoration: BoxDecoration(
+                        color: achievement.color.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Icon(
+                        achievement.icon,
+                        color: achievement.isLocked ? Colors.grey : achievement.color,
+                        size: 30,
+                      ),
+                    ),
+                    const SizedBox(width: 15),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            achievement.title,
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w600,
+                              color: achievement.isLocked ? Colors.grey : Colors.black87,
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            achievement.description,
+                            style: TextStyle(
+                              fontSize: 14,
+                              color: Colors.grey[600],
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          ClipRRect(
+                            borderRadius: BorderRadius.circular(5),
+                            child: LinearProgressIndicator(
+                              value: achievement.progressPercentage,
+                              backgroundColor: Colors.grey[200],
+                              valueColor: AlwaysStoppedAnimation<Color>(
+                                achievement.isLocked ? Colors.grey : AppColors.primary,
+                              ),
+                              minHeight: 6,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    if (achievement.isLocked)
+                      const Icon(
+                        Icons.lock,
+                        color: Colors.grey,
+                        size: 20,
+                      ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildDefaultCategories() {
+    return Column(
+      children: [
+        _buildAchievementCategory('亚洲探险', _asiaAchievements),
+        _buildAchievementCategory('欧洲探险', _europeAchievements),
+        _buildAchievementCategory('美洲探险', _americaAchievements),
+        _buildAchievementCategory('大洋洲探险', _oceaniaAchievements),
       ],
     );
   }
@@ -143,14 +336,14 @@ class AchievementListScreen extends StatelessWidget {
           ),
         ),
         ListView.builder(
-          padding: const EdgeInsets.symmetric(horizontal: 20),
+          padding: EdgeInsets.zero,
           physics: const NeverScrollableScrollPhysics(),
           shrinkWrap: true,
           itemCount: achievements.length,
           itemBuilder: (context, index) {
             final achievement = achievements[index];
             return Container(
-              margin: const EdgeInsets.only(bottom: 15),
+              margin: const EdgeInsets.only(bottom: 15, left: 20, right: 20),
               decoration: BoxDecoration(
                 color: Colors.white,
                 borderRadius: BorderRadius.circular(15),

@@ -6,6 +6,8 @@ import 'main_screen.dart';
 import 'package:muststudy/services/navigation_service.dart';
 import 'package:muststudy/routes/route_names.dart';
 import 'package:muststudy/routes/route_guard.dart';
+import 'package:flutter/services.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({Key? key}) : super(key: key);
@@ -260,15 +262,21 @@ class _LoginScreenState extends State<LoginScreen> {
 
       // 查找匹配的用户
       bool found = false;
+      String username = '';
       for (var user in testUsers) {
         if (user['u_name'] == _usernameController.text &&
             user['u_password'] == _passwordController.text) {
           found = true;
+          username = user['u_name']!;
           break;
         }
       }
 
       if (found) {
+        // 保存当前用户名到SharedPreferences
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setString('currentUsername', username);
+        
         // 登录成功
         if (!mounted) return;
         print('登录成功，准备跳转');
@@ -343,10 +351,14 @@ class _LoginScreenState extends State<LoginScreen> {
           _passwordController.text,
         );
 
+        // 保存当前用户名到SharedPreferences
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setString('currentUsername', _usernameController.text);
+        
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(
-              'Registration successful, please log in',
+              'Registration successful! You can now log in.',
               style: _pixelTextStyleError,
             ),
           ),

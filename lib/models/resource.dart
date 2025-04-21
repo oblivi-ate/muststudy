@@ -1,8 +1,11 @@
+import 'package:parse_server_sdk_flutter/parse_server_sdk_flutter.dart';
+
 class Resource {
   final String id;
   final String title;
   final String description;
   final String category;
+  final String type;
   final String imageUrl;
   final bool isMine;
   final String localImagePath;
@@ -17,6 +20,7 @@ class Resource {
     required this.title,
     required this.description,
     required this.category,
+    required this.type,
     required this.imageUrl,
     required this.author,
     required this.college,
@@ -26,6 +30,25 @@ class Resource {
     this.viewCount = 0,
     this.rating = 0.0,
   });
+
+  // 添加从ParseObject转换为Resource的方法
+  static Resource fromParseObject(ParseObject parseObject) {
+    return Resource(
+      id: parseObject.objectId ?? '',
+      title: parseObject.get<String>('title') ?? '',
+      description: parseObject.get<String>('description') ?? '',
+      category: parseObject.get<String>('category') ?? '',
+      type: parseObject.get<String>('type') ?? '',
+      imageUrl: parseObject.get<String>('imageUrl') ?? '',
+      author: parseObject.get<String>('author') ?? '',
+      college: parseObject.get<String>('college') ?? '',
+      isMine: parseObject.get<bool>('isMine') ?? false,
+      localImagePath: parseObject.get<String>('localImagePath') ?? '',
+      duration: parseObject.get<String>('duration') ?? '',
+      viewCount: parseObject.get<int>('viewCount') ?? 0,
+      rating: parseObject.get<double>('rating') ?? 0.0,
+    );
+  }
 }
 
 // 示例笔记数据
@@ -35,6 +58,7 @@ final List<Resource> notes = [
     title: '数据结构与算法基础笔记',
     description: '张老师的笔记',
     category: '数据结构',
+    type: '笔记',
     imageUrl: 'https://picsum.photos/200/300?random=1',
     author: '张老师',
     college: '创新工程学院',
@@ -44,6 +68,7 @@ final List<Resource> notes = [
     title: '算法分析与设计笔记',
     description: '李老师的笔记',
     category: '算法',
+    type: '笔记',
     imageUrl: 'https://picsum.photos/200/300?random=2',
     author: '李老师',
     college: '创新工程学院',
@@ -53,6 +78,7 @@ final List<Resource> notes = [
     title: '系统设计实践笔记',
     description: '王老师的笔记',
     category: '系统设计',
+    type: '笔记',
     imageUrl: 'https://picsum.photos/200/300?random=3',
     author: '王老师',
     college: '创新工程学院',
@@ -62,6 +88,7 @@ final List<Resource> notes = [
     title: '数据库优化笔记',
     description: '赵老师的笔记',
     category: '数据库',
+    type: '笔记',
     imageUrl: 'https://picsum.photos/200/300?random=4',
     author: '赵老师',
     college: '创新工程学院',
@@ -71,6 +98,7 @@ final List<Resource> notes = [
     title: 'React开发实战笔记',
     description: '孙老师的笔记',
     category: '前端开发',
+    type: '笔记',
     imageUrl: 'https://picsum.photos/200/300?random=5',
     author: '孙老师',
     college: '创新工程学院',
@@ -80,6 +108,7 @@ final List<Resource> notes = [
     title: 'Spring Boot实践笔记',
     description: '周老师的笔记',
     category: '后端开发',
+    type: '笔记',
     imageUrl: 'https://picsum.photos/200/300?random=6',
     author: '周老师',
     college: '创新工程学院',
@@ -89,6 +118,7 @@ final List<Resource> notes = [
     title: '会计学原理笔记',
     description: '陈老师的会计学笔记',
     category: '会计',
+    type: '笔记',
     imageUrl: 'https://picsum.photos/200/300?random=19',
     author: '陈老师',
     college: '商学院',
@@ -98,6 +128,7 @@ final List<Resource> notes = [
     title: '金融市场分析',
     description: '李老师的金融笔记',
     category: '金融',
+    type: '笔记',
     imageUrl: 'https://picsum.photos/200/300?random=20',
     author: '李老师',
     college: '商学院',
@@ -107,6 +138,7 @@ final List<Resource> notes = [
     title: '国际贸易实务',
     description: '王老师的贸易笔记',
     category: '国际贸易',
+    type: '笔记',
     imageUrl: 'https://picsum.photos/200/300?random=21',
     author: '王老师',
     college: '国际学院',
@@ -116,6 +148,7 @@ final List<Resource> notes = [
     title: '商务英语写作',
     description: '张老师的英语笔记',
     category: '商务英语',
+    type: '笔记',
     imageUrl: 'https://picsum.photos/200/300?random=22',
     author: '张老师',
     college: '国际学院',
@@ -129,6 +162,7 @@ final List<Resource> videos = [
     title: '算法分析与设计教程',
     description: '陈老师的视频',
     category: '算法',
+    type: '视频',
     imageUrl: 'https://picsum.photos/200/300?random=7',
     duration: '45:30',
     author: '陈老师',
@@ -139,6 +173,7 @@ final List<Resource> videos = [
     title: '数据结构精讲',
     description: '刘老师的视频',
     category: '数据结构',
+    type: '视频',
     imageUrl: 'https://picsum.photos/200/300?random=8',
     duration: '32:15',
     author: '刘老师',
@@ -149,6 +184,7 @@ final List<Resource> videos = [
     title: '分布式系统设计',
     description: '赵老师的视频',
     category: '系统设计',
+    type: '视频',
     imageUrl: 'https://picsum.photos/200/300?random=9',
     duration: '28:45',
     author: '赵老师',
@@ -159,6 +195,7 @@ final List<Resource> videos = [
     title: 'MySQL性能优化',
     description: '钱老师的视频',
     category: '数据库',
+    type: '视频',
     imageUrl: 'https://picsum.photos/200/300?random=10',
     duration: '35:20',
     author: '钱老师',
@@ -169,6 +206,7 @@ final List<Resource> videos = [
     title: 'Vue.js实战教程',
     description: '孙老师的视频',
     category: '前端开发',
+    type: '视频',
     imageUrl: 'https://picsum.photos/200/300?random=11',
     duration: '40:15',
     author: '孙老师',
@@ -179,6 +217,7 @@ final List<Resource> videos = [
     title: 'Node.js进阶课程',
     description: '周老师的视频',
     category: '后端开发',
+    type: '视频',
     imageUrl: 'https://picsum.photos/200/300?random=12',
     duration: '38:30',
     author: '周老师',
@@ -189,6 +228,7 @@ final List<Resource> videos = [
     title: '管理学导论',
     description: '赵老师的管理课程',
     category: '管理学',
+    type: '视频',
     imageUrl: 'https://picsum.photos/200/300?random=23',
     duration: '45:00',
     author: '赵老师',
@@ -199,6 +239,7 @@ final List<Resource> videos = [
     title: '市场营销策略',
     description: '钱老师的营销课程',
     category: '市场营销',
+    type: '视频',
     imageUrl: 'https://picsum.photos/200/300?random=24',
     duration: '38:20',
     author: '钱老师',
@@ -209,6 +250,7 @@ final List<Resource> videos = [
     title: '跨文化商务沟通',
     description: '孙老师的文化课程',
     category: '跨文化管理',
+    type: '视频',
     imageUrl: 'https://picsum.photos/200/300?random=25',
     duration: '42:15',
     author: '孙老师',
@@ -219,6 +261,7 @@ final List<Resource> videos = [
     title: '国际金融市场',
     description: '周老师的金融课程',
     category: '国际金融',
+    type: '视频',
     imageUrl: 'https://picsum.photos/200/300?random=26',
     duration: '35:40',
     author: '周老师',
@@ -233,6 +276,7 @@ final List<Resource> textbooks = [
     title: '算法导论',
     description: '孙老师的教材',
     category: '算法',
+    type: '教材',
     imageUrl: 'https://picsum.photos/200/300?random=13',
     author: '孙老师',
     college: '创新工程学院',
@@ -242,6 +286,7 @@ final List<Resource> textbooks = [
     title: '数据结构与算法分析',
     description: '周老师的教材',
     category: '数据结构',
+    type: '教材',
     imageUrl: 'https://picsum.photos/200/300?random=14',
     author: '周老师',
     college: '创新工程学院',
@@ -251,6 +296,7 @@ final List<Resource> textbooks = [
     title: '系统设计面试指南',
     description: '吴老师的教材',
     category: '系统设计',
+    type: '教材',
     imageUrl: 'https://picsum.photos/200/300?random=15',
     author: '吴老师',
     college: '创新工程学院',
@@ -260,6 +306,7 @@ final List<Resource> textbooks = [
     title: '数据库系统概念',
     description: '郑老师的教材',
     category: '数据库',
+    type: '教材',
     imageUrl: 'https://picsum.photos/200/300?random=16',
     author: '郑老师',
     college: '创新工程学院',
@@ -269,6 +316,7 @@ final List<Resource> textbooks = [
     title: '现代前端开发实战',
     description: '冯老师的教材',
     category: '前端开发',
+    type: '教材',
     imageUrl: 'https://picsum.photos/200/300?random=17',
     author: '冯老师',
     college: '创新工程学院',
@@ -278,6 +326,7 @@ final List<Resource> textbooks = [
     title: 'Java高级开发指南',
     description: '蒋老师的教材',
     category: '后端开发',
+    type: '教材',
     imageUrl: 'https://picsum.photos/200/300?random=18',
     author: '蒋老师',
     college: '创新工程学院',

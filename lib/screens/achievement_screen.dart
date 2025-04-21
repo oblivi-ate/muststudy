@@ -7,6 +7,8 @@ import 'achievement_list_screen.dart';
 import '../services/navigation_service.dart';
 import '../routes/route_names.dart';
 import '../repositories/Achievement_repository.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:parse_server_sdk_flutter/parse_server_sdk_flutter.dart';
 
 class AchievementScreen extends StatefulWidget {
   const AchievementScreen({Key? key}) : super(key: key);
@@ -29,14 +31,85 @@ class _AchievementScreenState extends State<AchievementScreen> {
 
   Future<void> _loadAchievements() async {
     try {
-      // 临时使用固定用户ID，实际应该从登录用户获取
-      final achievements = await _achievementRepository.fetchAchievements(1);
+      // 从SharedPreferences获取当前登录的用户信息
+      final prefs = await SharedPreferences.getInstance();
+      final username = prefs.getString('currentUsername') ?? '';
+      
+      if (username.isNotEmpty) {
+        // 获取用户ID
+        final query = QueryBuilder<ParseObject>(ParseObject('Userinfo'))
+          ..whereEqualTo('u_name', username);
+        final userResponse = await query.query();
+        
+        int userId = 1; // 默认使用ID为1
+        
+        if (userResponse.success && userResponse.results != null && userResponse.results!.isNotEmpty) {
+          final userObj = userResponse.results!.first as ParseObject;
+          userId = userObj.get<int>('u_id') ?? 1;
+        }
+        
+        // 使用用户ID获取成就
+        final parseAchievements = await _achievementRepository.fetchAchievements(userId);
+        
+        if (parseAchievements.isNotEmpty) {
+          final achievements = parseAchievements.map((parseObj) => Achievement.fromParseObject(parseObj)).toList();
+          setState(() {
+            _achievements = achievements;
+            _currentAchievement = achievements.isNotEmpty ? achievements.first : null;
+          });
+        } else {
+          // 如果没有成就数据，创建一些示例成就
+          _createDefaultAchievements(userId);
+        }
+      } else {
+        // 未登录，使用默认成就
+        setState(() {
+          _achievements = _manager.achievements;
+          _currentAchievement = _manager.achievements.isNotEmpty ? _manager.achievements.first : null;
+        });
+      }
+    } catch (e) {
+      debugPrint('Error loading achievements: $e');
+      // 使用默认成就
+      setState(() {
+        _achievements = _manager.achievements;
+        _currentAchievement = _manager.achievements.isNotEmpty ? _manager.achievements.first : null;
+      });
+    }
+  }
+
+  // 创建默认成就
+  Future<void> _createDefaultAchievements(int userId) async {
+    try {
+      // 创建默认成就
+      for (int i = 0; i < _manager.achievements.length; i++) {
+        final achievement = _manager.achievements[i];
+        await _achievementRepository.createAchievement(
+          i + 1,
+          userId,
+          achievement.title,
+          achievement.description,
+          'icon_${i + 1}', // 示例图标名称
+          achievement.currentProgress,
+          achievement.totalGoal,
+          !achievement.isLocked,
+        );
+      }
+      
+      // 重新加载成就
+      final parseAchievements = await _achievementRepository.fetchAchievements(userId);
+      final achievements = parseAchievements.map((parseObj) => Achievement.fromParseObject(parseObj)).toList();
       setState(() {
         _achievements = achievements;
         _currentAchievement = achievements.isNotEmpty ? achievements.first : null;
       });
     } catch (e) {
-      debugPrint('Error loading achievements: $e');
+      debugPrint('Error creating default achievements: $e');
+      // 使用默认成就
+      setState(() {
+        _achievements = _manager.achievements;
+        _currentAchievement = _manager.achievements.isNotEmpty ? _manager.achievements.first : null;
+      });
     }
   }
 
@@ -153,7 +226,7 @@ class _AchievementScreenState extends State<AchievementScreen> {
                   gradient: LinearGradient(
                     begin: Alignment.topLeft,
                     end: Alignment.bottomRight,
-                    colors: _getBackgroundColors(achievement.get<String>('title') ?? ''),
+                    colors: _getBackgroundColors(achievement.title),
                   ),
                 ),
               ),
@@ -172,12 +245,12 @@ class _AchievementScreenState extends State<AchievementScreen> {
                       gradient: LinearGradient(
                         begin: Alignment.topCenter,
                         end: Alignment.bottomCenter,
-                        colors: _getMountainColors(achievement.get<String>('title') ?? ''),
+                        colors: _getMountainColors(achievement.title),
                       ),
                     ),
                     child: CustomPaint(
                       size: Size.infinite,
-                      painter: _getMountainPainter(achievement.get<String>('title') ?? ''),
+                      painter: _getMountainPainter(achievement.title),
                     ),
                   ),
                 ),
@@ -186,8 +259,8 @@ class _AchievementScreenState extends State<AchievementScreen> {
               CustomPaint(
                 size: const Size(double.infinity, 160),
                 painter: _getPathPainter(
-                  achievement.get<String>('title') ?? '',
-                  achievement.get<int>('progress') / achievement.get<int>('goal'),
+                  achievement.title,
+                  achievement.progressPercentage,
                 ),
               ),
               // 关键节点标记
@@ -225,7 +298,7 @@ class _AchievementScreenState extends State<AchievementScreen> {
                   const SizedBox(width: 8),
                   Expanded(
                     child: Text(
-                      achievement.get<String>('title') ?? '未知成就',
+                      achievement.title,
                       style: const TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.bold,
@@ -461,7 +534,7 @@ class _AchievementScreenState extends State<AchievementScreen> {
                           TextButton(
                             onPressed: () {
                               setState(() {
-                                _manager.setCurrentAchievement(achievement);
+                                _currentAchievement = achievement;
                               });
                               Navigator.of(context).pop();
                             },

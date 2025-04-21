@@ -9,6 +9,7 @@ import '../theme/app_theme.dart';
 import '../services/navigation_service.dart';
 import '../repositories/Question_respositories.dart';
 import '../repositories/Q_tag_respositories.dart';
+import '../repositories/Answer_respositories.dart';
 
 class ForumScreen extends StatefulWidget {
   const ForumScreen({Key? key}) : super(key: key);
@@ -27,6 +28,52 @@ class _ForumScreenState extends State<ForumScreen> {
   final QtagRepository _qtagRepository = QtagRepository();
   List<ParseObject> _questions = [];
   List<ParseObject> _tags = [];
+  bool _isLoading = true;
+  String _errorMessage = '';
+  bool _usingLocalData = false;
+
+  // 本地数据作为备份
+  final List<Map<String, dynamic>> _localQuestions = [
+    {
+      'q_id': 1,
+      'q_person_id': 1,
+      'q_title': '如何实现高效排序算法？',
+      'q_information': '我需要对大量数据进行排序，请推荐一些高效的算法及其实现方式。',
+      'q_like': 10,
+      'q_description': '关于排序算法的问题',
+      'q_difficulty': '中等',
+      'q_tags': ['算法', '数据结构'],
+      'q_college': '创新工程学院',
+      'q_submission_count': 5,
+      'q_success_count': 3
+    },
+    {
+      'q_id': 2,
+      'q_person_id': 2,
+      'q_title': '数据库索引优化策略',
+      'q_information': '在处理大型数据表时，如何优化索引提高查询效率？',
+      'q_like': 8,
+      'q_description': '关于数据库优化的问题',
+      'q_difficulty': '简单',
+      'q_tags': ['数据库'],
+      'q_college': '创新工程学院',
+      'q_submission_count': 12,
+      'q_success_count': 10
+    },
+    {
+      'q_id': 3,
+      'q_person_id': 3,
+      'q_title': '系统设计—如何设计高并发系统',
+      'q_information': '设计一个可以处理高并发请求的系统架构，要考虑哪些因素？',
+      'q_like': 15,
+      'q_description': '关于系统架构设计的问题',
+      'q_difficulty': '困难',
+      'q_tags': ['系统设计', '后端开发'],
+      'q_college': '创新工程学院',
+      'q_submission_count': 3,
+      'q_success_count': 1
+    }
+  ];
 
   // 添加学院列表
   final List<String> _colleges = [
@@ -143,8 +190,12 @@ class _ForumScreenState extends State<ForumScreen> {
         _searchQuery = _searchController.text;
       });
     });
-    _loadQuestions();
-    _loadTags();
+    
+    // 测试Parse连接
+    _testParseConnection().then((_) {
+      // 无论连接测试结果如何，都尝试加载问题
+      _loadQuestionsWithFallback();
+    });
   }
 
   @override
@@ -153,14 +204,146 @@ class _ForumScreenState extends State<ForumScreen> {
     super.dispose();
   }
 
+  // 测试Parse连接
+  Future<void> _testParseConnection() async {
+    print('开始测试Parse连接...');
+    // 创建临时对象测试连接
+    final testObject = ParseObject('TestObject')
+      ..set('message', 'Flutter连接测试 ${DateTime.now().toString()}');
+    try {
+      final response = await testObject.save();
+      if (response.success) {
+        print('Parse连接正常: objectId=${response.results?.first.objectId}');
+      } else {
+        print('Parse连接失败: ${response.error?.message}');
+      }
+    } catch (e) {
+      print('Parse连接异常: $e');
+    }
+  }
+
+  // 加载问题，失败时使用本地数据
+  Future<void> _loadQuestionsWithFallback() async {
+    setState(() {
+      _isLoading = true;
+      _errorMessage = '';
+    });
+
+    try {
+      print('开始加载问题数据...');
+      await _loadQuestions();
+      
+      // 如果没有数据，强制创建示例数据
+      if (_questions.isEmpty) {
+        print('没有数据，强制创建示例数据');
+        await _createForceSampleData();
+        await _loadQuestions(); // 再次加载
+      }
+      
+      // 如果还是没有数据，使用本地数据
+      if (_questions.isEmpty) {
+        _useLocalData();
+      }
+    } catch (e) {
+      print('加载问题数据失败: $e');
+      _useLocalData();
+    } finally {
+      setState(() {
+        _isLoading = false;
+      });
+    }
+  }
+
+  // 使用本地数据
+  void _useLocalData() {
+    print('使用本地数据作为备份');
+    setState(() {
+      _usingLocalData = true;
+      _questions = _localQuestions.map((data) {
+        final obj = ParseObject('Question');
+        data.forEach((key, value) {
+          obj.set(key, value);
+        });
+        return obj;
+      }).toList();
+    });
+  }
+
+  // 强制创建示例数据
+  Future<void> _createForceSampleData() async {
+    try {
+      print('开始强制创建示例数据...');
+      final timestamp = DateTime.now().millisecondsSinceEpoch;
+      
+      // 创建第一个示例问题
+      await _questionRepository.createQuestionItem(
+        timestamp, // 使用时间戳作为ID，避免冲突
+        1, // 用户ID
+        "如何实现高效的排序算法？", // 标题
+        "我需要对大量数据进行排序，请推荐一些高效的算法及其实现方式。", // 内容
+        0, // 初始点赞数
+        "这是一个关于算法效率的问题", // 描述
+        "中等", // 难度
+        ["算法", "数据结构"], // 标签
+        "创新工程学院" // 学院
+      );
+      
+      // 为问题添加标签
+      await _qtagRepository.createQtagItem(timestamp, ["算法", "数据结构"]);
+      
+      // 添加一个示例回答
+      final answerRepo = AnswerRespositories();
+      await answerRepo.createAnswer(
+        timestamp, // 回答ID
+        "对于大量数据排序，我推荐使用快速排序或归并排序算法。它们的平均时间复杂度都是O(nlogn)。在实际应用中，快速排序通常表现更好，因为它有更好的局部性。", // 回答内容
+        2, // 回答者ID
+        0, // 初始点赞数
+        timestamp  // 问题ID
+      );
+      
+      // 创建第二个示例问题
+      await _questionRepository.createQuestionItem(
+        timestamp + 1, 
+        2, 
+        "数据库索引优化策略", 
+        "在处理大型数据表时，如何优化索引提高查询效率？", 
+        0, 
+        "关于数据库优化的问题", 
+        "简单", 
+        ["数据库"], 
+        "创新工程学院"
+      );
+      
+      await _qtagRepository.createQtagItem(timestamp + 1, ["数据库"]);
+      
+      print("强制创建示例数据成功");
+    } catch (e) {
+      print('强制创建示例数据失败: $e');
+    }
+  }
+
   Future<void> _loadQuestions() async {
     try {
+      print('开始加载问题数据...');
       final questions = await _questionRepository.fetchQuestions();
+      print('成功获取到${questions.length}个问题');
+      if (questions.isNotEmpty) {
+        for (var q in questions) {
+          print('问题ID: ${q.get<int>('q_id')}, 标题: ${q.get<String>('q_title')}');
+        }
+      } else {
+        print('没有获取到任何问题数据');
+      }
       setState(() {
         _questions = questions;
+        _usingLocalData = false;
       });
     } catch (e) {
-      print('Error loading questions: $e');
+      print('加载问题失败: $e');
+      setState(() {
+        _errorMessage = '加载数据失败: $e';
+      });
+      throw e; // 重新抛出异常，让上层函数处理
     }
   }
 
@@ -177,21 +360,73 @@ class _ForumScreenState extends State<ForumScreen> {
     }
   }
 
-  // 修改筛选逻辑
-  List<ParseObject> _getFilteredQuestions() {
-    return _questions.where((question) {
-      final tags = question.get<List>('q_tags');
-      final matchesCategory = _selectedCategory == '全部' || 
-          (tags != null && tags.contains(_selectedCategory));
+  // 使用修改过的筛选逻辑，基于学院和标签筛选问题
+  Future<List<ParseObject>> _getFilteredQuestions() async {
+    // 如果使用的是本地数据，直接在本地进行筛选
+    if (_usingLocalData) {
+      print('使用本地数据进行筛选');
+      return _questions.where((q) {
+        // 获取问题数据
+        final college = q.get<String>('q_college') ?? '';
+        final tags = q.get<List>('q_tags') ?? [];
+        final title = q.get<String>('q_title') ?? '';
+        final description = q.get<String>('q_description') ?? '';
+        
+        // 检查是否符合筛选条件
+        final matchesCollege = _selectedCollege == '全部' || college == _selectedCollege;
+        final matchesTag = _selectedCategory == '全部' || 
+            (tags is List && tags.contains(_selectedCategory));
+        final matchesSearch = _searchQuery.isEmpty || 
+            title.toLowerCase().contains(_searchQuery.toLowerCase()) ||
+            description.toLowerCase().contains(_searchQuery.toLowerCase());
+            
+        return matchesCollege && matchesTag && matchesSearch;
+      }).toList();
+    }
+    
+    try {
+      print('筛选问题，学院: $_selectedCollege, 标签: $_selectedCategory, 搜索: $_searchQuery');
+      // 使用新的filterQuestions方法
+      final filtered = await _questionRepository.filterQuestions(
+        college: _selectedCollege,
+        tag: _selectedCategory,
+        searchQuery: _searchQuery
+      );
+      print('筛选结果: ${filtered.length}个问题');
+      return filtered;
+    } catch (e) {
+      print('筛选问题失败: $e');
+      return [];
+    }
+  }
+
+  // 点赞问题的方法
+  Future<void> _likeQuestion(int questionId) async {
+    try {
+      await _questionRepository.likeQuestion(questionId);
+      // 刷新问题列表
+      _loadQuestions();
+    } catch (e) {
+      print('点赞失败: $e');
+    }
+  }
+
+  // 提交问题的解答
+  Future<void> _submitSolution(int questionId, bool isSuccess) async {
+    try {
+      // 增加提交次数
+      await _questionRepository.incrementSubmissionCount(questionId);
       
-      final title = question.get<String>('q_title') ?? '';
-      final description = question.get<String>('q_description') ?? '';
-      final matchesSearch = _searchQuery.isEmpty ||
-          title.toLowerCase().contains(_searchQuery.toLowerCase()) ||
-          description.toLowerCase().contains(_searchQuery.toLowerCase());
-          
-      return matchesCategory && matchesSearch;
-    }).toList();
+      // 如果解答成功，增加成功次数
+      if (isSuccess) {
+        await _questionRepository.incrementSuccessCount(questionId);
+      }
+      
+      // 刷新问题列表
+      _loadQuestions();
+    } catch (e) {
+      print('提交解答失败: $e');
+    }
   }
 
   @override
@@ -223,6 +458,16 @@ class _ForumScreenState extends State<ForumScreen> {
           IconButton(
             icon: const Icon(Icons.notifications_none, color: Colors.black87),
             onPressed: () {},
+          ),
+          IconButton(
+            icon: const Icon(Icons.upload_file),
+            onPressed: () {
+              Navigator.pushNamed(context, '/create_problem').then((_) {
+                // 刷新题目列表
+                _loadQuestions();
+              });
+            },
+            tooltip: '上传题目',
           ),
         ],
       ),
@@ -300,31 +545,98 @@ class _ForumScreenState extends State<ForumScreen> {
                       ),
                     ],
                   ),
-                  child: SingleChildScrollView(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const SizedBox(height: 20),
-                        Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 20.0),
-                          child: Text(
-                            _selectedCategory == '全部' ? "热门题目" : "${_selectedCategory}题目",
-                            style: TextStyle(
-                              fontSize: 20.0,
-                              fontWeight: FontWeight.w600,
-                              color: Colors.grey[800],
+                  child: _isLoading
+                  ? const Center(child: CircularProgressIndicator())
+                  : _errorMessage.isNotEmpty && !_usingLocalData
+                    ? Center(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(Icons.error_outline, size: 72, color: Colors.red[300]),
+                            const SizedBox(height: 16),
+                            Text(
+                              _errorMessage,
+                              style: TextStyle(
+                                fontSize: 16.0,
+                                color: Colors.red[700],
+                              ),
+                              textAlign: TextAlign.center,
                             ),
-                          ),
+                            const SizedBox(height: 24),
+                            ElevatedButton(
+                              onPressed: _loadQuestionsWithFallback,
+                              child: const Text('重试'),
+                            ),
+                          ],
                         ),
-                        const SizedBox(height: 16),
-                        _buildPopularProblems(),
-                        const SizedBox(height: 20),
-                      ],
-                    ),
-                  ),
+                      )
+                    : SingleChildScrollView(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const SizedBox(height: 20),
+                            Padding(
+                              padding: const EdgeInsets.symmetric(horizontal: 20.0),
+                              child: Row(
+                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                children: [
+                                  Text(
+                                    _selectedCategory == '全部' ? "热门题目" : "${_selectedCategory}题目",
+                                    style: TextStyle(
+                                      fontSize: 20.0,
+                                      fontWeight: FontWeight.w600,
+                                      color: Colors.grey[800],
+                                    ),
+                                  ),
+                                  if (_usingLocalData)
+                                    Chip(
+                                      label: const Text('使用本地数据'),
+                                      backgroundColor: Colors.amber[100],
+                                      labelStyle: TextStyle(color: Colors.amber[900], fontSize: 12),
+                                    ),
+                                ],
+                              ),
+                            ),
+                            const SizedBox(height: 16),
+                            _buildPopularProblems(),
+                            const SizedBox(height: 20),
+                          ],
+                        ),
+                      ),
                 ),
               ),
             ],
+          ),
+        ],
+      ),
+      floatingActionButton: Stack(
+        children: [
+          Positioned(
+            bottom: 10,
+            right: 10,
+            child: FloatingActionButton(
+              heroTag: 'refresh',
+              onPressed: () {
+                // 刷新题目列表
+                _loadQuestions();
+              },
+              child: const Icon(Icons.refresh),
+            ),
+          ),
+          Positioned(
+            bottom: 10,
+            right: 80,
+            child: FloatingActionButton.extended(
+              heroTag: 'upload',
+              onPressed: () {
+                Navigator.pushNamed(context, '/create_problem').then((_) {
+                  // 刷新题目列表
+                  _loadQuestions();
+                });
+              },
+              label: const Text('上传题目'),
+              icon: const Icon(Icons.add),
+            ),
           ),
         ],
       ),
@@ -363,114 +675,170 @@ class _ForumScreenState extends State<ForumScreen> {
   }
 
   Widget _buildPopularProblems() {
-    if (_questions.isEmpty) {
-      return const Center(child: CircularProgressIndicator());
-    }
-    
-    final filteredQuestions = _getFilteredQuestions();
-    
-    return ListView.builder(
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      itemCount: filteredQuestions.length,
-      itemBuilder: (context, index) {
-        final question = filteredQuestions[index];
-        final title = question.get<String>('q_title') ?? '无标题';
-        final description = question.get<String>('q_description') ?? '无描述';
-        final likeCount = question.get<int>('q_like') ?? 0;
-        return Container(
-          margin: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 8.0),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(20),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withOpacity(0.05),
-                blurRadius: 10,
-                offset: const Offset(0, 2),
-              ),
-            ],
-          ),
-          child: InkWell(
-            borderRadius: BorderRadius.circular(20),
-            onTap: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => ProblemDetails(problem: question),
-                ),
-              );
-            },
-            child: Padding(
-              padding: const EdgeInsets.all(16.0),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 4.0),
-                        decoration: BoxDecoration(
-                          color: question.get<String>('q_difficulty') == "简单"
-                              ? Colors.green[50]
-                              : question.get<String>('q_difficulty') == "中等"
-                                  ? Colors.orange[50]
-                                  : Colors.red[50],
-                          borderRadius: BorderRadius.circular(8.0),
-                        ),
-                        child: Text(
-                          question.get<String>('q_difficulty') ?? '未知',
-                          style: TextStyle(
-                            color: question.get<String>('q_difficulty') == "简单"
-                                ? Colors.green[700]
-                                : question.get<String>('q_difficulty') == "中等"
-                                    ? Colors.orange[700]
-                                    : Colors.red[700],
-                            fontSize: 12.0,
-                            fontWeight: FontWeight.w500,
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 12.0),
-                      Expanded(
-                        child: Text(
-                          title,
-                          style: const TextStyle(
-                            fontSize: 16.0,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                      ),
-                    ],
+    return FutureBuilder<List<ParseObject>>(
+      future: _getFilteredQuestions(),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting && !_usingLocalData) {
+          return const Center(child: CircularProgressIndicator());
+        }
+        
+        if (snapshot.hasError && !_usingLocalData) {
+          return Center(
+            child: Text(
+              '加载失败: ${snapshot.error}',
+              style: TextStyle(color: Colors.red[700]),
+            ),
+          );
+        }
+        
+        final filteredQuestions = snapshot.data ?? [];
+        
+        if (filteredQuestions.isEmpty) {
+          return Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(Icons.search_off, size: 72, color: Colors.grey[400]),
+                const SizedBox(height: 16),
+                Text(
+                  "没有找到符合条件的题目",
+                  style: TextStyle(
+                    fontSize: 18.0,
+                    color: Colors.grey[600],
                   ),
-                  const SizedBox(height: 12.0),
-                  Row(
-                    children: [
-                      Icon(Icons.check_circle_outline, size: 16.0, color: Colors.grey[600]),
-                      const SizedBox(width: 4.0),
-                      Text(
-                        "通过率: ${((question.get<int>('q_success_count') ?? 0) / (question.get<int>('q_submission_count') ?? 1) * 100).toStringAsFixed(1)}%",
-                        style: TextStyle(
-                          color: Colors.grey[600],
-                          fontSize: 12.0,
-                        ),
-                      ),
-                      const SizedBox(width: 16.0),
-                      Icon(Icons.people_outline, size: 16.0, color: Colors.grey[600]),
-                      const SizedBox(width: 4.0),
-                      Text(
-                        "${question.get<int>('q_submission_count') ?? 0}人提交",
-                        style: TextStyle(
-                          color: Colors.grey[600],
-                          fontSize: 12.0,
-                        ),
-                      ),
-                    ],
+                ),
+              ],
+            ),
+          );
+        }
+        
+        return ListView.builder(
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          itemCount: filteredQuestions.length,
+          itemBuilder: (context, index) {
+            final question = filteredQuestions[index];
+            final title = question.get<String>('q_title') ?? '无标题';
+            final description = question.get<String>('q_description') ?? '无描述';
+            final likeCount = question.get<int>('q_like') ?? 0;
+            final questionId = question.get<int>('q_id') ?? 0;
+            final difficulty = question.get<String>('q_difficulty') ?? '未知';
+            final submissionCount = question.get<int>('q_submission_count') ?? 0;
+            final successCount = question.get<int>('q_success_count') ?? 0;
+            
+            return Container(
+              margin: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 8.0),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(20),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.05),
+                    blurRadius: 10,
+                    offset: const Offset(0, 2),
                   ),
                 ],
               ),
-            ),
-          ),
+              child: InkWell(
+                borderRadius: BorderRadius.circular(20),
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => ProblemDetails(problem: question),
+                    ),
+                  );
+                },
+                child: Padding(
+                  padding: const EdgeInsets.all(16.0),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 4.0),
+                            decoration: BoxDecoration(
+                              color: difficulty == "简单"
+                                  ? Colors.green[50]
+                                  : difficulty == "中等"
+                                      ? Colors.orange[50]
+                                      : Colors.red[50],
+                              borderRadius: BorderRadius.circular(8.0),
+                            ),
+                            child: Text(
+                              difficulty,
+                              style: TextStyle(
+                                color: difficulty == "简单"
+                                    ? Colors.green[700]
+                                    : difficulty == "中等"
+                                        ? Colors.orange[700]
+                                        : Colors.red[700],
+                                fontSize: 12.0,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 12.0),
+                          Expanded(
+                            child: Text(
+                              title,
+                              style: const TextStyle(
+                                fontSize: 16.0,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 12.0),
+                      Row(
+                        children: [
+                          Icon(Icons.check_circle_outline, size: 16.0, color: Colors.grey[600]),
+                          const SizedBox(width: 4.0),
+                          Text(
+                            "通过率: ${submissionCount > 0 ? (successCount / submissionCount * 100).toStringAsFixed(1) : "0.0"}%",
+                            style: TextStyle(
+                              color: Colors.grey[600],
+                              fontSize: 12.0,
+                            ),
+                          ),
+                          const SizedBox(width: 16.0),
+                          Icon(Icons.people_outline, size: 16.0, color: Colors.grey[600]),
+                          const SizedBox(width: 4.0),
+                          Text(
+                            "${submissionCount}人提交",
+                            style: TextStyle(
+                              color: Colors.grey[600],
+                              fontSize: 12.0,
+                            ),
+                          ),
+                          const Spacer(),
+                          // 添加点赞按钮
+                          InkWell(
+                            onTap: () => _likeQuestion(questionId),
+                            child: Row(
+                              children: [
+                                Icon(Icons.thumb_up_outlined, size: 16.0, color: Colors.grey[600]),
+                                const SizedBox(width: 4.0),
+                                Text(
+                                  "$likeCount",
+                                  style: TextStyle(
+                                    color: Colors.grey[600],
+                                    fontSize: 12.0,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            );
+          },
         );
       },
     );
