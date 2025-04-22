@@ -7,7 +7,7 @@ import '../util/places.dart';
 import 'resource_details.dart';
 import 'learning_resources_screen.dart';
 import '../repositories/Userinfo_respositories.dart';
-import '../routes/route_names.dart';
+import '../routes/app_router.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({Key? key}) : super(key: key);

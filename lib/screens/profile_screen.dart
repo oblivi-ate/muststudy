@@ -561,85 +561,256 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   // 模拟学习功能
   Future<void> _simulateStudy() async {
+    int selectedHours = 0;
+    int selectedMinutes = 0;
+
     // 显示选择学习时长的对话框
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('模拟学习'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(20),
+        ),
+        title: Column(
           children: [
-            const Text('选择要增加的学习时长'),
-            const SizedBox(height: 16),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceAround,
-              children: [
-                _buildHourButton(1),
-                _buildHourButton(2),
-                _buildHourButton(5),
-              ],
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.blue[100],
+                shape: BoxShape.circle,
+              ),
+              child: Icon(
+                Icons.timer_outlined,
+                color: Colors.blue[700],
+                size: 28,
+              ),
+            ),
+            const SizedBox(height: 12),
+            const Text(
+              '选择要增加的学习时长',
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              '滑动选择时间',
+              style: TextStyle(
+                fontSize: 14,
+                color: Colors.grey[600],
+                fontWeight: FontWeight.normal,
+              ),
             ),
           ],
         ),
-      ),
-    );
-  }
-  
-  // 构建小时按钮
-  Widget _buildHourButton(int hours) {
-    return ElevatedButton(
-      onPressed: () async {
-        Navigator.pop(context); // 关闭对话框
-        
-        // 显示加载中
-        setState(() {
-          _isLoading = true;
-        });
-        
-        try {
-          // 更新学习时长
-          final success = await _userinfoRepository.updateStudyHours(_userId, hours);
-          
-          if (success) {
-            // 刷新数据
-            await _loadUserStatistics(_userId);
-            
-            if (mounted) {
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(content: Text('成功增加 $hours 小时学习时长')),
-              );
-            }
-          } else {
-            if (mounted) {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('增加学习时长失败')),
-              );
-            }
-          }
-        } catch (e) {
-          print('增加学习时长失败: $e');
-          if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('增加学习时长失败')),
-            );
-          }
-        } finally {
-          if (mounted) {
-            setState(() {
-              _isLoading = false;
-            });
-          }
-        }
-      },
-      style: ElevatedButton.styleFrom(
-        backgroundColor: Colors.blue[700],
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(8),
+        content: Container(
+          height: 180,
+          width: 280,
+          decoration: BoxDecoration(
+            color: Colors.grey[50],
+            borderRadius: BorderRadius.circular(15),
+          ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              // 小时选择器
+              Expanded(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      '小时',
+                      style: TextStyle(
+                        fontSize: 14,
+                        color: Colors.grey[600],
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Expanded(
+                      child: ListWheelScrollView.useDelegate(
+                        itemExtent: 40,
+                        useMagnifier: true,
+                        magnification: 1.2,
+                        physics: const FixedExtentScrollPhysics(),
+                        onSelectedItemChanged: (index) {
+                          selectedHours = index;
+                        },
+                        childDelegate: ListWheelChildBuilderDelegate(
+                          builder: (context, index) {
+                            return Container(
+                              alignment: Alignment.center,
+                              child: Text(
+                                index.toString(),
+                                style: TextStyle(
+                                  fontSize: 16,
+                                  color: Colors.blue[700],
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                            );
+                          },
+                          childCount: 24,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              // 分隔符
+              Container(
+                height: 100,
+                width: 1,
+                color: Colors.grey[300],
+                margin: const EdgeInsets.symmetric(horizontal: 12),
+              ),
+              // 分钟选择器
+              Expanded(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      '分钟',
+                      style: TextStyle(
+                        fontSize: 14,
+                        color: Colors.grey[600],
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Expanded(
+                      child: ListWheelScrollView.useDelegate(
+                        itemExtent: 40,
+                        useMagnifier: true,
+                        magnification: 1.2,
+                        physics: const FixedExtentScrollPhysics(),
+                        onSelectedItemChanged: (index) {
+                          selectedMinutes = index * 5;
+                        },
+                        childDelegate: ListWheelChildBuilderDelegate(
+                          builder: (context, index) {
+                            return Container(
+                              alignment: Alignment.center,
+                              child: Text(
+                                (index * 5).toString(),
+                                style: TextStyle(
+                                  fontSize: 16,
+                                  color: Colors.blue[700],
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                            );
+                          },
+                          childCount: 12,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
         ),
-      ),
-      child: Text(
-        '+$hours 小时',
-        style: const TextStyle(color: Colors.white),
+        actions: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+            children: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                style: TextButton.styleFrom(
+                  foregroundColor: Colors.grey[600],
+                ),
+                child: const Text(
+                  '取消',
+                  style: TextStyle(fontSize: 16),
+                ),
+              ),
+              ElevatedButton(
+                onPressed: () async {
+                  Navigator.pop(context);
+                  
+                  if (selectedHours == 0 && selectedMinutes == 0) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('请选择学习时长')),
+                    );
+                    return;
+                  }
+
+                  // 显示加载中
+                  setState(() {
+                    _isLoading = true;
+                  });
+
+                  try {
+                    // 将分钟转换为小时（保留一位小数）
+                    final hours = selectedHours + (selectedMinutes / 60);
+                    
+                    // 更新学习时长
+                    final success = await _userinfoRepository.updateStudyHours(_userId, hours);
+
+                    if (success) {
+                      // 刷新数据
+                      await _loadUserStatistics(_userId);
+
+                      if (mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Row(
+                              children: [
+                                const Icon(Icons.check_circle, color: Colors.white),
+                                const SizedBox(width: 8),
+                                Text('成功增加 $selectedHours 小时 $selectedMinutes 分钟学习时长'),
+                              ],
+                            ),
+                            backgroundColor: Colors.green,
+                          ),
+                        );
+                      }
+                    } else {
+                      if (mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text('增加学习时长失败'),
+                            backgroundColor: Colors.red,
+                          ),
+                        );
+                      }
+                    }
+                  } catch (e) {
+                    print('增加学习时长失败: $e');
+                    if (mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text('增加学习时长失败'),
+                          backgroundColor: Colors.red,
+                        ),
+                      );
+                    }
+                  } finally {
+                    if (mounted) {
+                      setState(() {
+                        _isLoading = false;
+                      });
+                    }
+                  }
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.blue[700],
+                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                ),
+                child: const Text(
+                  '确定',
+                  style: TextStyle(
+                    fontSize: 16,
+                    color: Colors.white,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ],
       ),
     );
   }

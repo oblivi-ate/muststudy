@@ -113,28 +113,30 @@ class UserinfoRepository {
   }
   
   // 更新用户学习时长
-  Future<bool> updateStudyHours(int userId, int hours) async {
+  Future<bool> updateStudyHours(int userId, double hours) async {
     try {
       final query = QueryBuilder<ParseObject>(ParseObject('UserStatistics'))
         ..whereEqualTo('userId', userId);
       final response = await query.query();
-      
+
+      ParseObject userStats;
       if (response.success && response.results != null && response.results!.isNotEmpty) {
-        final stats = response.results!.first as ParseObject;
-        final currentHours = stats.get<int>('studyHours') ?? 0;
-        stats.set('studyHours', currentHours + hours);
-        final updateResponse = await stats.save();
-        return updateResponse.success;
+        userStats = response.results!.first as ParseObject;
+        // 获取当前的学习时长
+        final currentHours = userStats.get<double>('studyHours') ?? 0.0;
+        // 更新学习时长
+        userStats.set('studyHours', currentHours + hours);
       } else {
-        // 如果用户没有统计数据，创建一条新数据
-        final stats = ParseObject('UserStatistics')
+        // 如果不存在记录，创建新记录
+        userStats = ParseObject('UserStatistics')
           ..set('userId', userId)
           ..set('studyHours', hours)
           ..set('solvedProblems', 0)
           ..set('achievements', 0);
-        final createResponse = await stats.save();
-        return createResponse.success;
       }
+
+      final saveResponse = await userStats.save();
+      return saveResponse.success;
     } catch (e) {
       print('更新学习时长失败: $e');
       return false;
