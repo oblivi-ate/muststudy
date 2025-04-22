@@ -4,7 +4,7 @@ import 'app_router.dart';
 import '../services/navigation_service.dart';
 
 class App extends StatelessWidget {
-  const App({Key? key}) : super(key: key);
+  const App({super.key});
 
   static Future<void> initialize() async {
     WidgetsFlutterBinding.ensureInitialized();

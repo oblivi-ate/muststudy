@@ -15,12 +15,24 @@ class UserinfoRepository {
   }
 
   Future<List<ParseObject>?> fetchUserinfo() async {
-    final query = QueryBuilder<ParseObject>(ParseObject('Userinfo'));
-    final response = await query.query();
-    if (response.success && response.results != null) {
-      return response.results as List<ParseObject>;
+    try {
+      print('开始获取用户信息...');
+      final query = QueryBuilder<ParseObject>(ParseObject('Userinfo'));
+      print('查询对象已创建');
+      final response = await query.query();
+      print('查询执行完成，状态：${response.success}');
+      print('错误信息：${response.error?.message ?? "无"}');
+      print('结果数量：${response.results?.length ?? 0}');
+      
+      if (response.success && response.results != null) {
+        return response.results as List<ParseObject>;
+      }
+      print('获取失败：${response.error?.message}');
+      return null;
+    } catch (e) {
+      print('获取用户信息时发生错误: $e');
+      return null;
     }
-    return null;
   }
 
   Future<void> updateUserinfo(int id, String newName, String newPassword) async {

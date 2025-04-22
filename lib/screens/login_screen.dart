@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:muststudy/repositories/Question_respositories.dart';
 import '../repositories/Userinfo_respositories.dart';
 import '../widgets/danmu_widget.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -252,53 +253,38 @@ class _LoginScreenState extends State<LoginScreen> {
     });
 
     try {
-      // 测试数据
-      final testUsers = [
-        {'u_name': 'test', 'u_password': '123456'},
-        {'u_name': 'admin', 'u_password': 'admin'},
-      ];
+      final userList = await _userinfoRepository.fetchUserinfo();
 
-      // 查找匹配的用户
-      bool found = false;
-      for (var user in testUsers) {
-        if (user['u_name'] == _usernameController.text &&
-            user['u_password'] == _passwordController.text) {
-          found = true;
-          break;
+      if (userList != null) {
+        dynamic user;
+        try {
+          user = userList.firstWhere(
+            (user) => 
+              user.get<String>('u_name') == _usernameController.text &&
+              user.get<String>('u_password') == _passwordController.text,
+          );
+        } catch (e) {
+          user = null;  // 用户不存在时设置为 null
         }
-      }
 
-      if (found) {
-        // 登录成功
-        if (!mounted) return;
-        print('登录成功，准备跳转');
-        RouteGuard.setLoggedIn(true);
-        // 使用 Navigator.of(context) 直接跳转
-        Navigator.of(context).pushNamedAndRemoveUntil(
-          RouteNames.home,
-          (route) => false,
-        );
-      } else {
-        // 登录失败
-        if (!mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              'Username or password is incorrect',
-              style: _pixelTextStyleError,
-            ),
-          ),
-        );
+        if (user != null) {
+          if (!mounted) return;
+          // 登录成功，导航到主屏幕
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(builder: (context) => const MainScreen()),
+          );
+        } else {
+          if (!mounted) return;
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('用户名或密码错误')),
+          );
+        }
       }
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            'Login failed: $e',
-            style: _pixelTextStyleError,
-          ),
-        ),
+        SnackBar(content: Text('登录错误: $e')),
       );
     } finally {
       if (mounted) {
@@ -315,27 +301,23 @@ class _LoginScreenState extends State<LoginScreen> {
     });
 
     try {
-      // 获取所有用户以检查用户名是否已存在
       final userList = await _userinfoRepository.fetchUserinfo();
       
       if (userList != null) {
+        // Check if username already exists
         final isUserExists = userList.any(
           (user) => user.get<String>('u_name') == _usernameController.text
         );
 
         if (isUserExists) {
+          if (!mounted) return;
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(
-                'Username already exists',
-                style: _pixelTextStyleError,
-              ),
-            ),
+            const SnackBar(content: Text('Username already exists')),
           );
           return;
         }
 
-        // 创建新用户
+        // Create new user with incremented ID
         final newUserId = userList.length + 1;
         await _userinfoRepository.createUserinfoItem(
           newUserId,
@@ -343,13 +325,9 @@ class _LoginScreenState extends State<LoginScreen> {
           _passwordController.text,
         );
 
+        if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              'Registration successful, please log in',
-              style: _pixelTextStyleError,
-            ),
-          ),
+          const SnackBar(content: Text('Registration successful, please log in')),
         );
         
         setState(() {
@@ -357,18 +335,16 @@ class _LoginScreenState extends State<LoginScreen> {
         });
       }
     } catch (e) {
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            'Registration failed: $e',
-            style: _pixelTextStyleError,
-          ),
-        ),
+        SnackBar(content: Text('Registration failed: $e')),
       );
     } finally {
-      setState(() {
-        _isLoading = false;
-      });
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
     }
   }
 
@@ -388,4 +364,4 @@ class _LoginScreenState extends State<LoginScreen> {
     _passwordController.dispose();
     super.dispose();
   }
-} 
+}

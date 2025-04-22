@@ -40,7 +40,7 @@ class _ProblemDetailsState extends State<ProblemDetails> {
       final tags = await _qtagRepository.fetchQtag();
       if (tags != null) {
         final questionTags = tags.where((tag) => 
-          tag.get<int>('q_id') == widget.problem.id
+          tag.get<int>('q_id') == widget.problem.objectId
         ).toList();
       }
     } catch (e) {
