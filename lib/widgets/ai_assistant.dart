@@ -40,6 +40,20 @@ class _AIAssistantDialogState extends State<AIAssistantDialog> {
     const apiUrl = 'https://api.deepseek.com/v1/chat/completions';
 
     try {
+      // 构建消息历史
+      final List<Map<String, String>> messageHistory = [];
+      for (var msg in _messages) {
+        messageHistory.add({
+          'role': msg['type'] == 'user' ? 'user' : 'assistant',
+          'content': msg['message']!
+        });
+      }
+      // 添加当前消息
+      messageHistory.add({
+        'role': 'user',
+        'content': message
+      });
+
       final response = await http.post(
         Uri.parse(apiUrl),
         headers: {
@@ -49,9 +63,7 @@ class _AIAssistantDialogState extends State<AIAssistantDialog> {
         },
         body: jsonEncode({
           'model': 'deepseek-chat',
-          'messages': [
-            {'role': 'user', 'content': message}
-          ],
+          'messages': messageHistory,
           'temperature': 0.7,
         }),
       );
@@ -106,36 +118,9 @@ class _AIAssistantDialogState extends State<AIAssistantDialog> {
   @override
   Widget build(BuildContext context) {
     return Container(
-      height: MediaQuery.of(context).size.height * 0.75,
-      decoration: const BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
+      color: Colors.white,
       child: Column(
         children: [
-          Container(
-            padding: const EdgeInsets.symmetric(vertical: 16),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.grey.withOpacity(0.1),
-                  spreadRadius: 1,
-                  blurRadius: 10,
-                ),
-              ],
-            ),
-            child: const Center(
-              child: Text(
-                'AI 助手',
-                style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-            ),
-          ),
           Expanded(
             child: ListView.builder(
               controller: _scrollController,

@@ -7,6 +7,7 @@ import '../util/places.dart';
 import 'resource_details.dart';
 import 'learning_resources_screen.dart';
 import '../repositories/Userinfo_respositories.dart';
+import '../routes/route_names.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({Key? key}) : super(key: key);
@@ -217,12 +218,7 @@ class _HomeScreenState extends State<HomeScreen> {
                           MaterialPageRoute(builder: (context) => const ForumScreen()),
                         );
                       } else if (action['label'] == 'AI助手') {
-                        showModalBottomSheet(
-                          context: context,
-                          isScrollControlled: true,
-                          backgroundColor: Colors.transparent,
-                          builder: (context) => const AIAssistantDialog(),
-                        );
+                        Navigator.pushNamed(context, RouteNames.aiAssistant);
                       } else if (action['label'] == '学习资源') {
                         Navigator.push(
                           context,

@@ -16,6 +16,7 @@ import 'package:muststudy/screens/settings_learning.dart';
 import 'package:muststudy/screens/settings_help.dart';
 import 'package:muststudy/screens/settings_contact.dart';
 import 'package:muststudy/screens/settings_feedback.dart';
+import '../screens/ai_assistant_screen.dart';
 
 // 路由参数类
 class RouteArguments {
@@ -69,6 +70,7 @@ class RouteNames {
   static const String settingsHelp = 'settings_help';
   static const String settingsContact = 'settings_contact';
   static const String feedback = '/feedback';
+  static const String aiAssistant = '/ai-assistant';
 }
 
 // 路由过渡动画
@@ -151,6 +153,10 @@ class AppRouter {
         return RouteTransitions.slideTransition(const SettingsContactScreen());
       case RouteNames.feedback:
         return MaterialPageRoute(builder: (_) => const FeedbackScreen());
+      case RouteNames.aiAssistant:
+        return MaterialPageRoute(
+          builder: (_) => const AIAssistantScreen(),
+        );
       default:
         return RouteTransitions.fadeTransition(
           Scaffold(
