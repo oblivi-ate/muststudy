@@ -5,7 +5,9 @@ import '../util/places.dart';
 import 'resource_details.dart';
 import '../widgets/search_bar.dart';
 import '../models/resource.dart';
-import 'package:muststudy/services/navigation_service.dart';
+import '../services/navigation_service.dart';
+import 'package:parse_server_sdk_flutter/parse_server_sdk_flutter.dart';
+import '../repositories/Resource_repository.dart';
 
 class LearningResourcesScreen extends StatefulWidget {
   const LearningResourcesScreen({Key? key}) : super(key: key);
@@ -15,14 +17,352 @@ class LearningResourcesScreen extends StatefulWidget {
 }
 
 class _LearningResourcesScreenState extends State<LearningResourcesScreen> {
-  int _selectedCategoryIndex = 0;
-  final List<String> categories = ["全部", "算法", "数据结构", "系统设计", "数据库", "前端开发", "后端开发"];
+  String _selectedCategory = '全部';
+  String _selectedCollege = '全部';
+  final TextEditingController _searchController = TextEditingController();
+  String _searchQuery = '';
+  final ResourceRepository _resourceRepository = ResourceRepository();
+  List<ParseObject> _resources = [];
+  bool _isLoading = true;
+  String _errorMessage = '';
+  bool _usingLocalData = false;
 
-  // 根据选中的分类筛选资源
-  List<Resource> getFilteredResources(List<Resource> resources) {
-    if (_selectedCategoryIndex == 0) return resources; // 默认显示所有资源
-    final category = categories[_selectedCategoryIndex];
-    return resources.where((resource) => resource.category == category).toList();
+  // 本地数据作为备份
+  final List<Map<String, dynamic>> _localResources = [
+    {
+      'objectId': '1',
+      'title': '数据结构与算法基础笔记',
+      'description': '张老师的数据结构与算法基础课程笔记，适合初学者学习',
+      'type': '笔记',
+      'category': '数据结构',
+      'imageUrl': 'https://picsum.photos/200/300?random=1',
+      'author': '张老师',
+      'college': '创新工程学院',
+      'viewCount': 120,
+      'rating': 4.5,
+    },
+    {
+      'objectId': '2',
+      'title': '算法分析与设计教程视频',
+      'description': '李老师讲解算法分析与设计的视频课程，包含多种经典算法的详细分析',
+      'type': '视频',
+      'category': '算法',
+      'imageUrl': 'https://picsum.photos/200/300?random=2',
+      'author': '李老师',
+      'college': '创新工程学院',
+      'viewCount': 208,
+      'rating': 4.8,
+      'duration': '45:30',
+    },
+    {
+      'objectId': '3',
+      'title': '系统设计实践教材',
+      'description': '王老师编著的系统设计实践教材，内容丰富，案例详实',
+      'type': '教材',
+      'category': '系统设计',
+      'imageUrl': 'https://picsum.photos/200/300?random=3',
+      'author': '王老师',
+      'college': '创新工程学院',
+      'viewCount': 156,
+      'rating': 4.2,
+    },
+    {
+      'objectId': '4',
+      'title': '数据库优化指南',
+      'description': '赵老师的数据库优化笔记，包含MySQL、PostgreSQL等多种数据库的优化技巧',
+      'type': '笔记',
+      'category': '数据库',
+      'imageUrl': 'https://picsum.photos/200/300?random=4',
+      'author': '赵老师',
+      'college': '创新工程学院',
+      'viewCount': 98,
+      'rating': 4.0,
+    }
+  ];
+
+  // 添加学院列表
+  final List<String> _colleges = [
+    '全部',
+    '创新工程学院',
+    '商学院',
+    '国际学院',
+  ];
+
+  // 添加不同学院的标签映射
+  final Map<String, List<String>> _collegeCategories = {
+    '全部': [
+      '全部',
+      '数据结构',
+      '算法',
+      '系统设计',
+      '数据库',
+      '前端开发',
+      '后端开发'
+    ],
+    '创新工程学院': [
+      '全部',
+      '数据结构',
+      '算法',
+      '系统设计',
+      '数据库',
+      '前端开发',
+      '后端开发'
+    ],
+    '商学院': [
+      '全部',
+      '会计',
+      '金融',
+      '市场营销',
+      '经济学',
+      '管理学'
+    ],
+    '国际学院': [
+      '全部',
+      '国际贸易',
+      '商务英语',
+      '跨文化管理',
+      '国际金融'
+    ],
+  };
+
+  void _showCollegeSelector(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (BuildContext context) {
+        return Container(
+          padding: const EdgeInsets.symmetric(vertical: 20),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      '选择学院',
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.grey[800],
+                      ),
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.close),
+                      onPressed: () => Navigator.pop(context),
+                    ),
+                  ],
+                ),
+              ),
+              const Divider(),
+              Expanded(
+                child: ListView.builder(
+                  itemCount: _colleges.length,
+                  itemBuilder: (context, index) {
+                    final college = _colleges[index];
+                    return ListTile(
+                      title: Text(college),
+                      trailing: _selectedCollege == college
+                          ? Icon(Icons.check, color: AppColors.primary)
+                          : null,
+                      onTap: () {
+                        setState(() {
+                          _selectedCollege = college;
+                          // 重置分类选择
+                          _selectedCategory = '全部';
+                        });
+                        Navigator.pop(context);
+                      },
+                    );
+                  },
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    _searchController.addListener(() {
+      setState(() {
+        _searchQuery = _searchController.text;
+      });
+    });
+    
+    // 测试Parse连接
+    _testParseConnection().then((_) {
+      // 无论连接测试结果如何，都尝试加载资源
+      _loadResourcesWithFallback();
+    });
+  }
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  // 测试Parse连接
+  Future<void> _testParseConnection() async {
+    print('开始测试Parse连接...');
+    // 创建临时对象测试连接
+    final testObject = ParseObject('TestObject')
+      ..set('message', 'Flutter资源页面连接测试 ${DateTime.now().toString()}');
+    try {
+      final response = await testObject.save();
+      if (response.success) {
+        print('Parse连接正常: objectId=${response.results?.first.objectId}');
+      } else {
+        print('Parse连接失败: ${response.error?.message}');
+      }
+    } catch (e) {
+      print('Parse连接异常: $e');
+    }
+  }
+
+  // 加载资源，失败时使用本地数据
+  Future<void> _loadResourcesWithFallback() async {
+    setState(() {
+      _isLoading = true;
+      _errorMessage = '';
+    });
+
+    try {
+      print('开始加载资源数据...');
+      await _loadResources();
+      
+      // 如果没有数据，强制创建示例数据
+      if (_resources.isEmpty) {
+        print('没有数据，强制创建示例资源');
+        await _createSampleResources();
+        await _loadResources(); // 再次加载
+      }
+      
+      // 如果还是没有数据，使用本地数据
+      if (_resources.isEmpty) {
+        _useLocalData();
+      }
+    } catch (e) {
+      print('加载资源数据失败: $e');
+      _useLocalData();
+    } finally {
+      setState(() {
+        _isLoading = false;
+      });
+    }
+  }
+
+  // 使用本地数据
+  void _useLocalData() {
+    print('使用本地数据作为备份');
+    setState(() {
+      _usingLocalData = true;
+      _resources = _localResources.map((data) {
+        final obj = ParseObject('Resource');
+        data.forEach((key, value) {
+          obj.set(key, value);
+        });
+        return obj;
+      }).toList();
+    });
+  }
+
+  // 创建示例资源数据
+  Future<void> _createSampleResources() async {
+    try {
+      print('开始创建示例资源数据...');
+      
+      // 创建笔记资源
+      await _resourceRepository.createResource(
+        DateTime.now().millisecondsSinceEpoch, 
+        '数据结构与算法基础笔记', 
+        '张老师的数据结构与算法基础课程笔记，适合初学者学习', 
+        'https://picsum.photos/200/300?random=1', 
+        '笔记', 
+        1
+      );
+      
+      // 创建视频资源
+      await _resourceRepository.createResource(
+        DateTime.now().millisecondsSinceEpoch + 1, 
+        '算法分析与设计教程视频', 
+        '李老师讲解算法分析与设计的视频课程，包含多种经典算法的详细分析', 
+        'https://picsum.photos/200/300?random=2', 
+        '视频', 
+        2
+      );
+      
+      // 创建教材资源
+      await _resourceRepository.createResource(
+        DateTime.now().millisecondsSinceEpoch + 2, 
+        '系统设计实践教材', 
+        '王老师编著的系统设计实践教材，内容丰富，案例详实', 
+        'https://picsum.photos/200/300?random=3', 
+        '教材', 
+        3
+      );
+      
+      print("示例资源创建成功");
+    } catch (e) {
+      print('创建示例资源失败: $e');
+    }
+  }
+
+  Future<void> _loadResources() async {
+    try {
+      print('开始加载资源数据...');
+      final parseResources = await _resourceRepository.fetchResources();
+      print('成功获取到${parseResources.length}个资源');
+      if (parseResources.isNotEmpty) {
+        for (var resource in parseResources) {
+          print('资源标题: ${resource.get<String>('title')}, 类型: ${resource.get<String>('type')}');
+        }
+      } else {
+        print('没有获取到任何资源数据');
+      }
+      setState(() {
+        _resources = parseResources;
+        _usingLocalData = false;
+        _errorMessage = '';
+      });
+    } catch (e) {
+      print('加载资源失败: $e');
+      setState(() {
+        _errorMessage = '加载数据失败: $e';
+      });
+      throw e; // 重新抛出异常，让上层函数处理
+    }
+  }
+
+  // 修改筛选逻辑，并转换为Resource对象
+  List<Resource> _getFilteredResources() {
+    // 如果正在加载，直接返回空列表
+    if (_isLoading) {
+      return [];
+    }
+    
+    return _resources.where((resource) {
+      final resourceType = resource.get<String>('type') ?? '';
+      final resourceCollege = resource.get<String>('college') ?? '';
+      final title = resource.get<String>('title') ?? '';
+      final description = resource.get<String>('description') ?? '';
+      final category = resource.get<String>('category') ?? resourceType; // 如果没有类别，使用类型
+      
+      final matchesCategory = _selectedCategory == '全部' || category == _selectedCategory;
+      final matchesCollege = _selectedCollege == '全部' || resourceCollege == _selectedCollege;
+      final matchesSearch = _searchQuery.isEmpty ||
+          title.toLowerCase().contains(_searchQuery.toLowerCase()) ||
+          description.toLowerCase().contains(_searchQuery.toLowerCase());
+          
+      return matchesCategory && matchesCollege && matchesSearch;
+    }).map((parseObject) => Resource.fromParseObject(parseObject)).toList();
   }
 
   @override
@@ -38,9 +378,9 @@ class _LearningResourcesScreenState extends State<LearningResourcesScreen> {
       appBar: AppBar(
         backgroundColor: const Color(0xFFFFE4D4),
         elevation: 0,
-        title: const Text(
-          '学习资源',
-          style: TextStyle(
+        title: Text(
+          _selectedCollege,
+          style: const TextStyle(
             color: Colors.black87,
             fontSize: 20,
             fontWeight: FontWeight.bold,
@@ -48,11 +388,11 @@ class _LearningResourcesScreenState extends State<LearningResourcesScreen> {
         ),
         actions: <Widget>[
           IconButton(
-            icon: const Icon(Icons.notifications_none, color: Colors.black87),
-            onPressed: () {},
+            icon: const Icon(Icons.school, color: Colors.black87),
+            onPressed: () => _showCollegeSelector(context),
           ),
           IconButton(
-            icon: const Icon(Icons.person_outline, color: Colors.black87),
+            icon: const Icon(Icons.notifications_none, color: Colors.black87),
             onPressed: () {},
           ),
         ],
@@ -79,7 +419,36 @@ class _LearningResourcesScreenState extends State<LearningResourcesScreen> {
                       ),
                     ),
                     const SizedBox(height: 16),
-                    const CustomSearchBar(),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(25),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withOpacity(0.05),
+                            blurRadius: 10,
+                            offset: const Offset(0, 2),
+                          ),
+                        ],
+                      ),
+                      child: TextField(
+                        controller: _searchController,
+                        decoration: InputDecoration(
+                          hintText: '搜索学习资源...',
+                          border: InputBorder.none,
+                          icon: Icon(Icons.search, color: Colors.grey[400]),
+                          suffixIcon: _searchQuery.isNotEmpty
+                              ? IconButton(
+                                  icon: Icon(Icons.clear, color: Colors.grey[400]),
+                                  onPressed: () {
+                                    _searchController.clear();
+                                  },
+                                )
+                              : null,
+                        ),
+                      ),
+                    ),
                     const SizedBox(height: 16),
                     _buildCategoryChips(),
                   ],
@@ -90,7 +459,7 @@ class _LearningResourcesScreenState extends State<LearningResourcesScreen> {
                 child: Container(
                   width: double.infinity,
                   decoration: BoxDecoration(
-                    color: const Color(0xFFFFF8F3),
+                    color: Colors.white,
                     borderRadius: const BorderRadius.vertical(
                       top: Radius.circular(30),
                     ),
@@ -102,262 +471,275 @@ class _LearningResourcesScreenState extends State<LearningResourcesScreen> {
                       ),
                     ],
                   ),
-                  child: SingleChildScrollView(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const SizedBox(height: 20),
-                        _buildResourceSection("笔记", Icons.note_alt_outlined, notes),
-                        _buildResourceSection("视频", Icons.play_circle_outline, videos),
-                        _buildResourceSection("教材", Icons.book_outlined, textbooks),
-                      ],
-                    ),
-                  ),
+                  child: _isLoading
+                  ? const Center(child: CircularProgressIndicator())
+                  : _errorMessage.isNotEmpty && !_usingLocalData
+                    ? Center(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(Icons.error_outline, size: 72, color: Colors.red[300]),
+                            const SizedBox(height: 16),
+                            Text(
+                              _errorMessage,
+                              style: TextStyle(
+                                fontSize: 16.0,
+                                color: Colors.red[700],
+                              ),
+                              textAlign: TextAlign.center,
+                            ),
+                            const SizedBox(height: 24),
+                            ElevatedButton(
+                              onPressed: _loadResourcesWithFallback,
+                              child: const Text('重试'),
+                            ),
+                          ],
+                        ),
+                      )
+                    : Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 16.0),
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Text(
+                                  _selectedCategory == '全部' ? "推荐资源" : "${_selectedCategory}资源",
+                                  style: TextStyle(
+                                    fontSize: 20.0,
+                                    fontWeight: FontWeight.w600,
+                                    color: Colors.grey[800],
+                                  ),
+                                ),
+                                if (_usingLocalData)
+                                  Chip(
+                                    label: const Text('使用本地数据'),
+                                    backgroundColor: Colors.amber[100],
+                                    labelStyle: TextStyle(color: Colors.amber[900], fontSize: 12),
+                                  ),
+                              ],
+                            ),
+                          ),
+                          Expanded(
+                            child: _buildResourceList(),
+                          ),
+                        ],
+                      ),
                 ),
               ),
             ],
           ),
         ],
       ),
-    );
-  }
-
-  Widget _buildCategoryChips() {
-    return SizedBox(
-      height: 50.0,
-      child: ListView.builder(
-        scrollDirection: Axis.horizontal,
-        itemCount: categories.length,
-        itemBuilder: (context, index) {
-          final isSelected = index == _selectedCategoryIndex;
-          return Padding(
-            padding: const EdgeInsets.only(right: 12.0),
-            child: Container(
-              decoration: BoxDecoration(
-                color: isSelected ? AppColors.primary : Colors.white,
-                borderRadius: BorderRadius.circular(25),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.05),
-                    blurRadius: 8,
-                    offset: const Offset(0, 2),
-                  ),
-                ],
-              ),
-              child: Material(
-                color: Colors.transparent,
-                child: InkWell(
-                  borderRadius: BorderRadius.circular(25),
-                  onTap: () {
-                    setState(() {
-                      _selectedCategoryIndex = index;
-                    });
-                  },
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-                    child: Text(
-                      categories[index],
-                      style: TextStyle(
-                        color: isSelected ? Colors.white : AppColors.primary,
-                        fontSize: 14,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-            ),
-          );
+      floatingActionButton: FloatingActionButton(
+        onPressed: () {
+          // 刷新操作
+          _loadResourcesWithFallback();
         },
+        backgroundColor: AppColors.primary,
+        child: const Icon(Icons.refresh),
       ),
     );
   }
 
-  Widget _buildResourceSection(String title, IconData icon, List<Resource> resources) {
-    final filteredResources = getFilteredResources(resources);
-    if (filteredResources.isEmpty) return const SizedBox.shrink();
-    
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 20.0),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(
-                title,
-                style: TextStyle(
-                  fontSize: 20.0,
-                  fontWeight: FontWeight.w600,
-                  color: Colors.grey[800],
-                ),
+  Widget _buildCategoryChips() {
+    // 获取当前选中学院的标签列表
+    final categories = _collegeCategories[_selectedCollege] ?? _collegeCategories['全部']!;
+
+    return SizedBox(
+      height: 50.0,
+      child: SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        child: Row(
+          children: categories.map((category) {
+            return Padding(
+              padding: const EdgeInsets.only(right: 8),
+              child: FilterChip(
+                label: Text(category),
+                selected: _selectedCategory == category,
+                selectedColor: AppColors.primary.withOpacity(0.2),
+                checkmarkColor: AppColors.primary,
+                onSelected: (selected) {
+                  setState(() {
+                    _selectedCategory = selected ? category : '全部';
+                  });
+                },
               ),
-              TextButton(
-                onPressed: () {},
-                child: Text(
-                  "查看全部",
-                  style: TextStyle(color: AppColors.primary),
-                ),
-              ),
-            ],
-          ),
+            );
+          }).toList(),
         ),
-        const SizedBox(height: 12),
-        SizedBox(
-          height: 220,
-          child: ListView.builder(
-            padding: const EdgeInsets.symmetric(horizontal: 20.0),
-            scrollDirection: Axis.horizontal,
-            itemCount: filteredResources.length,
-            itemBuilder: (context, index) {
-              final resource = filteredResources[index];
-              return Container(
-                width: 160,
-                margin: const EdgeInsets.only(right: 16.0),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(20),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withOpacity(0.05),
-                      blurRadius: 10,
-                      offset: const Offset(0, 2),
-                    ),
-                  ],
-                ),
-                child: InkWell(
-                  borderRadius: BorderRadius.circular(20),
-                  onTap: () {
-                    NavigationService().navigateToResourceDetails(resource);
-                  },
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      ClipRRect(
-                        borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
-                        child: Container(
-                          height: 100,
-                          width: double.infinity,
-                          color: Colors.grey[100],
-                          child: Stack(
-                            fit: StackFit.expand,
-                            children: [
-                              // 默认占位图
-                              Icon(
-                                _getIconForCategory(resource.category),
-                                size: 40,
-                                color: Colors.grey[300],
-                              ),
-                              // 如果有本地图片，优先使用本地图片
-                              if (resource.category == "算法")
-                                Image.asset(
-                                  'assets/images/algorithm_icon.png',
-                                  fit: BoxFit.cover,
-                                )
-                              else if (resource.category == "数据结构")
-                                Image.asset(
-                                  'assets/images/data_structure_icon.png',
-                                  fit: BoxFit.cover,
-                                )
-                              else if (resource.category == "系统设计")
-                                Image.asset(
-                                  'assets/images/system_design_icon.png',
-                                  fit: BoxFit.cover,
-                                )
-                              else if (resource.category == "数据库")
-                                Image.asset(
-                                  'assets/images/database_icon.png',
-                                  fit: BoxFit.cover,
-                                )
-                              else if (resource.category == "前端开发")
-                                Image.asset(
-                                  'assets/images/frontend_icon.png',
-                                  fit: BoxFit.cover,
-                                )
-                              else if (resource.category == "后端开发")
-                                Image.asset(
-                                  'assets/images/backend_icon.png',
-                                  fit: BoxFit.cover,
-                                ),
-                            ],
-                          ),
-                        ),
-                      ),
-                      Padding(
-                        padding: const EdgeInsets.all(12.0),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              resource.title,
-                              style: const TextStyle(
-                                fontSize: 14.0,
-                                fontWeight: FontWeight.w600,
-                              ),
-                              maxLines: 2,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                            const SizedBox(height: 8),
-                            Row(
-                              children: [
-                                Icon(icon, size: 16.0, color: Colors.grey[600]),
-                                const SizedBox(width: 4),
-                                Text(
-                                  resource.author,
-                                  style: TextStyle(
-                                    fontSize: 12.0,
-                                    color: Colors.grey[600],
-                                  ),
-                                ),
-                              ],
-                            ),
-                            const SizedBox(height: 8),
-                            Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 4.0),
-                              decoration: BoxDecoration(
-                                color: AppColors.primary.withOpacity(0.1),
-                                borderRadius: BorderRadius.circular(8.0),
-                              ),
-                              child: Text(
-                                resource.category,
-                                style: TextStyle(
-                                  fontSize: 12.0,
-                                  color: AppColors.primary,
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              );
-            },
-          ),
-        ),
-        const SizedBox(height: 20),
-      ],
+      ),
     );
   }
 
-  IconData _getIconForCategory(String category) {
-    switch (category) {
-      case "算法":
-        return Icons.architecture;
-      case "数据结构":
-        return Icons.data_array;
-      case "系统设计":
-        return Icons.design_services;
-      case "数据库":
-        return Icons.storage;
-      case "前端开发":
-        return Icons.web;
-      case "后端开发":
-        return Icons.dns;
-      default:
+  Widget _buildResourceList() {
+    final filteredResources = _getFilteredResources();
+    
+    if (filteredResources.isEmpty) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.search_off, size: 72, color: Colors.grey[400]),
+            const SizedBox(height: 16),
+            Text(
+              "没有找到符合条件的资源",
+              style: TextStyle(
+                fontSize: 18.0,
+                color: Colors.grey[600],
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+    
+    return ListView.builder(
+      padding: const EdgeInsets.symmetric(horizontal: 20.0),
+      itemCount: filteredResources.length,
+      itemBuilder: (context, index) {
+        final resource = filteredResources[index];
+        return InkWell(
+          onTap: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => ResourceDetails(resource: resource),
+              ),
+            );
+          },
+          child: _buildResourceCard(resource),
+        );
+      },
+    );
+  }
+
+  Widget _buildResourceCard(Resource resource) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 16.0),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16.0),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 8.0,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(16.0),
+          onTap: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => ResourceDetails(resource: resource),
+              ),
+            );
+          },
+          child: Padding(
+            padding: const EdgeInsets.all(16.0),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Container(
+                      width: 60.0,
+                      height: 60.0,
+                      decoration: BoxDecoration(
+                        color: AppColors.primary.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(12.0),
+                      ),
+                      child: Icon(
+                        _getIconForCategory(resource.type),
+                        color: AppColors.primary,
+                        size: 30.0,
+                      ),
+                    ),
+                    const SizedBox(width: 16.0),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            resource.title,
+                            style: const TextStyle(
+                              fontSize: 18.0,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                          const SizedBox(height: 4.0),
+                          Text(
+                            resource.description,
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              fontSize: 14.0,
+                              color: Colors.grey[600],
+                            ),
+                          ),
+                          const SizedBox(height: 8.0),
+                          Row(
+                            children: [
+                              Icon(
+                                Icons.person_outline,
+                                size: 16.0,
+                                color: Colors.grey[600],
+                              ),
+                              const SizedBox(width: 4.0),
+                              Text(
+                                resource.author,
+                                style: TextStyle(
+                                  fontSize: 12.0,
+                                  color: Colors.grey[600],
+                                ),
+                              ),
+                              const SizedBox(width: 16.0),
+                              Icon(
+                                Icons.remove_red_eye_outlined,
+                                size: 16.0,
+                                color: Colors.grey[600],
+                              ),
+                              const SizedBox(width: 4.0),
+                              Text(
+                                '${resource.viewCount}次观看',
+                                style: TextStyle(
+                                  fontSize: 12.0,
+                                  color: Colors.grey[600],
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  IconData _getIconForCategory(String type) {
+    switch (type.toLowerCase()) {
+      case '笔记':
+        return Icons.note;
+      case '视频':
+        return Icons.video_library;
+      case '教材':
         return Icons.book;
+      default:
+        return Icons.description;
     }
   }
-} 
+}

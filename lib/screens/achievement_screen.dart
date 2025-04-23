@@ -4,8 +4,12 @@ import 'dart:ui' as ui;
 import '../models/achievement.dart';
 import '../theme/app_theme.dart';
 import 'achievement_list_screen.dart';
-import 'package:muststudy/services/navigation_service.dart';
-import 'package:muststudy/routes/route_names.dart';
+import '../services/navigation_service.dart';
+import '../routes/app_router.dart';
+import '../repositories/Achievement_repository.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:parse_server_sdk_flutter/parse_server_sdk_flutter.dart';
+import '../widgets/app_footer.dart';
 
 class AchievementScreen extends StatefulWidget {
   const AchievementScreen({Key? key}) : super(key: key);
@@ -15,7 +19,100 @@ class AchievementScreen extends StatefulWidget {
 }
 
 class _AchievementScreenState extends State<AchievementScreen> {
+  final AchievementRepository _achievementRepository = AchievementRepository();
+  List<Achievement> _achievements = [];
+  Achievement? _currentAchievement;
   final AchievementManager _manager = AchievementManager();
+
+  @override
+  void initState() {
+    super.initState();
+    _loadAchievements();
+  }
+
+  Future<void> _loadAchievements() async {
+    try {
+      // 从SharedPreferences获取当前登录的用户信息
+      final prefs = await SharedPreferences.getInstance();
+      final username = prefs.getString('currentUsername') ?? '';
+      
+      if (username.isNotEmpty) {
+        // 获取用户ID
+        final query = QueryBuilder<ParseObject>(ParseObject('Userinfo'))
+          ..whereEqualTo('u_name', username);
+        final userResponse = await query.query();
+        
+        int userId = 1; // 默认使用ID为1
+        
+        if (userResponse.success && userResponse.results != null && userResponse.results!.isNotEmpty) {
+          final userObj = userResponse.results!.first as ParseObject;
+          userId = userObj.get<int>('u_id') ?? 1;
+        }
+        
+        // 使用用户ID获取成就
+        final parseAchievements = await _achievementRepository.fetchAchievements(userId);
+        
+        if (parseAchievements.isNotEmpty) {
+          final achievements = parseAchievements.map((parseObj) => Achievement.fromParseObject(parseObj)).toList();
+          setState(() {
+            _achievements = achievements;
+            _currentAchievement = achievements.isNotEmpty ? achievements.first : null;
+          });
+        } else {
+          // 如果没有成就数据，创建一些示例成就
+          _createDefaultAchievements(userId);
+        }
+      } else {
+        // 未登录，使用默认成就
+        setState(() {
+          _achievements = _manager.achievements;
+          _currentAchievement = _manager.achievements.isNotEmpty ? _manager.achievements.first : null;
+        });
+      }
+    } catch (e) {
+      debugPrint('Error loading achievements: $e');
+      // 使用默认成就
+      setState(() {
+        _achievements = _manager.achievements;
+        _currentAchievement = _manager.achievements.isNotEmpty ? _manager.achievements.first : null;
+      });
+    }
+  }
+
+  // 创建默认成就
+  Future<void> _createDefaultAchievements(int userId) async {
+    try {
+      // 创建默认成就
+      for (int i = 0; i < _manager.achievements.length; i++) {
+        final achievement = _manager.achievements[i];
+        await _achievementRepository.createAchievement(
+          i + 1,
+          userId,
+          achievement.title,
+          achievement.description,
+          'icon_${i + 1}', // 示例图标名称
+          achievement.currentProgress,
+          achievement.totalGoal,
+          !achievement.isLocked,
+        );
+      }
+      
+      // 重新加载成就
+      final parseAchievements = await _achievementRepository.fetchAchievements(userId);
+      final achievements = parseAchievements.map((parseObj) => Achievement.fromParseObject(parseObj)).toList();
+      setState(() {
+        _achievements = achievements;
+        _currentAchievement = achievements.isNotEmpty ? achievements.first : null;
+      });
+    } catch (e) {
+      debugPrint('Error creating default achievements: $e');
+      // 使用默认成就
+      setState(() {
+        _achievements = _manager.achievements;
+        _currentAchievement = _manager.achievements.isNotEmpty ? _manager.achievements.first : null;
+      });
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -39,67 +136,42 @@ class _AchievementScreenState extends State<AchievementScreen> {
           ),
         ),
       ),
-      body: Stack(
-        children: [
-          Container(
-            color: const Color(0xFFFFE4D4),
-          ),
-          Column(
-            children: [
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 20.0),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text(
-                      "正在进行的探索",
-                      style: TextStyle(
-                        fontSize: 24.0,
-                        fontWeight: FontWeight.w600,
-                        color: Colors.black87,
-                      ),
-                    ),
-                    const SizedBox(height: 20),
-                    _buildCurrentAchievement(),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 30),
-              Expanded(
-                child: Container(
-                  width: double.infinity,
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFFFF8F3),
-                    borderRadius: const BorderRadius.vertical(
-                      top: Radius.circular(30),
-                    ),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withOpacity(0.05),
-                        blurRadius: 10,
-                        offset: const Offset(0, -2),
-                      ),
-                    ],
-                  ),
-                  child: SingleChildScrollView(
-                    child: Column(
-                      children: [
-                        const SizedBox(height: 20),
-                        _buildAchievementWall(),
-                      ],
+      body: SingleChildScrollView(
+        child: Column(
+          children: [
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 20.0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    "正在进行的探索",
+                    style: TextStyle(
+                      fontSize: 24.0,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.black87,
                     ),
                   ),
-                ),
+                  const SizedBox(height: 20),
+                  _buildCurrentAchievement(),
+                ],
               ),
-            ],
-          ),
-        ],
+            ),
+            const SizedBox(height: 30),
+            _buildAchievementWall(),
+            const AppFooter(),
+          ],
+        ),
       ),
     );
   }
 
   Widget _buildCurrentAchievement() {
-    final achievement = _manager.currentAchievement!;
+    if (_currentAchievement == null) {
+      return const Center(child: CircularProgressIndicator());
+    }
+    
+    final achievement = _currentAchievement!;
     
     return Column(
       children: [
@@ -158,13 +230,14 @@ class _AchievementScreenState extends State<AchievementScreen> {
               // 根据成就类型设置不同的路径
               CustomPaint(
                 size: const Size(double.infinity, 160),
-                painter: _getPathPainter(achievement.title, achievement.currentProgress / achievement.totalGoal),
+                painter: _getPathPainter(
+                  achievement.title,
+                  achievement.progressPercentage,
+                ),
               ),
               // 关键节点标记
-              ...achievement.milestones.map((milestone) {
-                final position = milestone.requiredProgress / achievement.totalGoal;
-                return _buildMilestone(position, milestone.requirement, milestone.name);
-              }).toList(),
+              // TODO: 实现里程碑显示
+              // 需要从Parse后端获取里程碑数据
             ],
           ),
         ),
@@ -190,9 +263,9 @@ class _AchievementScreenState extends State<AchievementScreen> {
               Row(
                 children: [
                   Icon(
-                    achievement.icon,
+                    Icons.emoji_events, // 使用默认图标，后续可从icon_name获取对应图标
                     size: 20,
-                    color: achievement.color.withOpacity(0.9),
+                    color: Colors.amber.withOpacity(0.9),
                   ),
                   const SizedBox(width: 8),
                   Expanded(
@@ -433,7 +506,7 @@ class _AchievementScreenState extends State<AchievementScreen> {
                           TextButton(
                             onPressed: () {
                               setState(() {
-                                _manager.setCurrentAchievement(achievement);
+                                _currentAchievement = achievement;
                               });
                               Navigator.of(context).pop();
                             },
@@ -976,4 +1049,4 @@ class PyramidPathPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(covariant CustomPainter oldDelegate) => true;
-} 
+}

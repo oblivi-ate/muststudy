@@ -14,11 +14,25 @@ class _AIAssistantDialogState extends State<AIAssistantDialog> {
   final TextEditingController _messageController = TextEditingController();
   final List<Map<String, String>> _messages = [];
   bool _isLoading = false;
+  final ScrollController _scrollController = ScrollController();
 
   @override
   void dispose() {
     _messageController.dispose();
+    _scrollController.dispose();
     super.dispose();
+  }
+
+  void _scrollToBottom() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (_scrollController.hasClients) {
+        _scrollController.animateTo(
+          _scrollController.position.maxScrollExtent,
+          duration: const Duration(milliseconds: 300),
+          curve: Curves.easeOut,
+        );
+      }
+    });
   }
 
   Future<String> _getAIResponse(String message) async {
@@ -26,28 +40,50 @@ class _AIAssistantDialogState extends State<AIAssistantDialog> {
     const apiUrl = 'https://api.deepseek.com/v1/chat/completions';
 
     try {
+      // 构建消息历史
+      final List<Map<String, String>> messageHistory = [];
+      for (var msg in _messages) {
+        messageHistory.add({
+          'role': msg['type'] == 'user' ? 'user' : 'assistant',
+          'content': msg['message']!
+        });
+      }
+      // 添加当前消息
+      messageHistory.add({
+        'role': 'user',
+        'content': message
+      });
+
       final response = await http.post(
         Uri.parse(apiUrl),
         headers: {
-          'Content-Type': 'application/json',
+          'Content-Type': 'application/json; charset=utf-8',
           'Authorization': 'Bearer $apiKey',
+          'Accept': 'application/json; charset=utf-8',
         },
         body: jsonEncode({
           'model': 'deepseek-chat',
-          'messages': [
-            {'role': 'user', 'content': message}
-          ],
+          'messages': messageHistory,
           'temperature': 0.7,
         }),
       );
 
       if (response.statusCode == 200) {
-        final data = jsonDecode(response.body);
-        return data['choices'][0]['message']['content'];
+        final responseBody = utf8.decode(response.bodyBytes);
+        print('Raw response: $responseBody');
+        
+        final data = jsonDecode(responseBody);
+        final content = data['choices'][0]['message']['content'] as String;
+        print('Decoded content: $content');
+        
+        return content;
       } else {
+        print('Error status code: ${response.statusCode}');
+        print('Error response: ${response.body}');
         return '抱歉，我遇到了一些问题。请稍后再试。';
       }
     } catch (e) {
+      print('Error in _getAIResponse: $e');
       return '抱歉，我遇到了一些问题。请稍后再试。';
     }
   }
@@ -65,6 +101,7 @@ class _AIAssistantDialogState extends State<AIAssistantDialog> {
       });
       _isLoading = true;
     });
+    _scrollToBottom();
 
     final aiResponse = await _getAIResponse(userMessage);
 
@@ -75,43 +112,18 @@ class _AIAssistantDialogState extends State<AIAssistantDialog> {
       });
       _isLoading = false;
     });
+    _scrollToBottom();
   }
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      height: MediaQuery.of(context).size.height * 0.75,
-      decoration: const BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
+      color: Colors.white,
       child: Column(
         children: [
-          Container(
-            padding: const EdgeInsets.symmetric(vertical: 16),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.grey.withOpacity(0.1),
-                  spreadRadius: 1,
-                  blurRadius: 10,
-                ),
-              ],
-            ),
-            child: const Center(
-              child: Text(
-                'AI 助手',
-                style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-            ),
-          ),
           Expanded(
             child: ListView.builder(
+              controller: _scrollController,
               padding: const EdgeInsets.all(16),
               itemCount: _messages.length + (_isLoading ? 1 : 0),
               itemBuilder: (context, index) {
@@ -149,20 +161,28 @@ class _AIAssistantDialogState extends State<AIAssistantDialog> {
                         : MarkdownBody(
                             data: message['message']!,
                             styleSheet: MarkdownStyleSheet(
-                              p: TextStyle(
+                              p: const TextStyle(
                                 color: Colors.black,
                                 fontSize: 16,
+                                height: 1.5,
                               ),
                               code: TextStyle(
                                 backgroundColor: Colors.grey[300],
                                 color: Colors.black87,
                                 fontSize: 14,
+                                fontFamily: 'monospace',
                               ),
                               codeblockDecoration: BoxDecoration(
                                 color: Colors.grey[300],
                                 borderRadius: BorderRadius.circular(8),
                               ),
+                              blockquote: const TextStyle(
+                                color: Colors.black87,
+                                fontSize: 16,
+                                height: 1.5,
+                              ),
                             ),
+                            selectable: true,
                           ),
                   ),
                 );
