@@ -16,6 +16,7 @@ class App extends StatelessWidget {
         'https://parseapi.back4app.com',
         clientKey: 'Y43iPlZRj7XgjqTR56PG48PAxhnPgf4QeeSMtWIv',
         debug: true,
+        autoSendSessionId: true,
       );
       print('Parse 初始化成功');
     } catch (e) {

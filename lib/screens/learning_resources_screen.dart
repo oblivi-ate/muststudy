@@ -196,10 +196,9 @@ class _LearningResourcesScreenState extends State<LearningResourcesScreen> {
       });
     });
     
-    // 测试Parse连接
-    _testParseConnection().then((_) {
-      // 无论连接测试结果如何，都尝试加载资源
-      _loadResourcesWithFallback();
+    // 使用 Future.delayed 来确保 UI 已经渲染完成
+    Future.delayed(Duration.zero, () {
+      _loadResourcesFromCache();
     });
   }
 
@@ -209,26 +208,10 @@ class _LearningResourcesScreenState extends State<LearningResourcesScreen> {
     super.dispose();
   }
 
-  // 测试Parse连接
-  Future<void> _testParseConnection() async {
-    print('开始测试Parse连接...');
-    // 创建临时对象测试连接
-    final testObject = ParseObject('TestObject')
-      ..set('message', 'Flutter资源页面连接测试 ${DateTime.now().toString()}');
-    try {
-      final response = await testObject.save();
-      if (response.success) {
-        print('Parse连接正常: objectId=${response.results?.first.objectId}');
-      } else {
-        print('Parse连接失败: ${response.error?.message}');
-      }
-    } catch (e) {
-      print('Parse连接异常: $e');
-    }
-  }
-
-  // 加载资源，失败时使用本地数据
-  Future<void> _loadResourcesWithFallback() async {
+  // 从缓存加载资源
+  Future<void> _loadResourcesFromCache() async {
+    if (!mounted) return;
+    
     setState(() {
       _isLoading = true;
       _errorMessage = '';
@@ -236,32 +219,41 @@ class _LearningResourcesScreenState extends State<LearningResourcesScreen> {
 
     try {
       print('开始加载资源数据...');
-      await _loadResources();
+      final result = await _resourceRepository.fetchResources();
       
-      // 如果没有数据，强制创建示例数据
-      if (_resources.isEmpty) {
-        print('没有数据，强制创建示例资源');
-        await _createSampleResources();
-        await _loadResources(); // 再次加载
-      }
+      if (!mounted) return;
       
-      // 如果还是没有数据，使用本地数据
-      if (_resources.isEmpty) {
+      if (result != null && result.isNotEmpty) {
+        setState(() {
+          _resources = result;
+          _usingLocalData = false;
+          _isLoading = false;
+        });
+      } else {
+        print('没有获取到资源数据，使用本地数据');
         _useLocalData();
       }
     } catch (e) {
       print('加载资源数据失败: $e');
+      if (!mounted) return;
+      setState(() {
+        _errorMessage = '加载失败，请检查网络连接';
+      });
       _useLocalData();
     } finally {
-      setState(() {
-        _isLoading = false;
-      });
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
     }
   }
 
   // 使用本地数据
   void _useLocalData() {
     print('使用本地数据作为备份');
+    if (!mounted) return;
+    
     setState(() {
       _usingLocalData = true;
       _resources = _localResources.map((data) {
@@ -271,7 +263,48 @@ class _LearningResourcesScreenState extends State<LearningResourcesScreen> {
         });
         return obj;
       }).toList();
+      _isLoading = false;
     });
+  }
+
+  // 刷新数据
+  Future<void> _refreshData() async {
+    if (!mounted) return;
+    
+    setState(() {
+      _isLoading = true;
+      _errorMessage = '';
+    });
+
+    try {
+      final result = await _resourceRepository.refreshResources();
+      
+      if (!mounted) return;
+      
+      if (result != null && result.isNotEmpty) {
+        setState(() {
+          _resources = result;
+          _usingLocalData = false;
+          _isLoading = false;
+        });
+      } else {
+        print('刷新失败，使用本地数据');
+        _useLocalData();
+      }
+    } catch (e) {
+      print('刷新资源数据失败: $e');
+      if (!mounted) return;
+      setState(() {
+        _errorMessage = '刷新失败，请检查网络连接';
+      });
+      _useLocalData();
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
+    }
   }
 
   // 创建示例资源数据
@@ -312,32 +345,6 @@ class _LearningResourcesScreenState extends State<LearningResourcesScreen> {
       print("示例资源创建成功");
     } catch (e) {
       print('创建示例资源失败: $e');
-    }
-  }
-
-  Future<void> _loadResources() async {
-    try {
-      print('开始加载资源数据...');
-      final parseResources = await _resourceRepository.fetchResources();
-      print('成功获取到${parseResources.length}个资源');
-      if (parseResources.isNotEmpty) {
-        for (var resource in parseResources) {
-          print('资源标题: ${resource.get<String>('title')}, 类型: ${resource.get<String>('type')}');
-        }
-      } else {
-        print('没有获取到任何资源数据');
-      }
-      setState(() {
-        _resources = parseResources;
-        _usingLocalData = false;
-        _errorMessage = '';
-      });
-    } catch (e) {
-      print('加载资源失败: $e');
-      setState(() {
-        _errorMessage = '加载数据失败: $e';
-      });
-      throw e; // 重新抛出异常，让上层函数处理
     }
   }
 
@@ -472,7 +479,22 @@ class _LearningResourcesScreenState extends State<LearningResourcesScreen> {
                     ],
                   ),
                   child: _isLoading
-                  ? const Center(child: CircularProgressIndicator())
+                  ? const Center(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          CircularProgressIndicator(),
+                          SizedBox(height: 16),
+                          Text(
+                            '正在加载资源...',
+                            style: TextStyle(
+                              fontSize: 16,
+                              color: Colors.grey,
+                            ),
+                          ),
+                        ],
+                      ),
+                    )
                   : _errorMessage.isNotEmpty && !_usingLocalData
                     ? Center(
                         child: Column(
@@ -490,7 +512,7 @@ class _LearningResourcesScreenState extends State<LearningResourcesScreen> {
                             ),
                             const SizedBox(height: 24),
                             ElevatedButton(
-                              onPressed: _loadResourcesWithFallback,
+                              onPressed: _refreshData,
                               child: const Text('重试'),
                             ),
                           ],
@@ -533,10 +555,7 @@ class _LearningResourcesScreenState extends State<LearningResourcesScreen> {
         ],
       ),
       floatingActionButton: FloatingActionButton(
-        onPressed: () {
-          // 刷新操作
-          _loadResourcesWithFallback();
-        },
+        onPressed: _refreshData,
         backgroundColor: AppColors.primary,
         child: const Icon(Icons.refresh),
       ),

@@ -191,11 +191,8 @@ class _ForumScreenState extends State<ForumScreen> {
       });
     });
     
-    // 测试Parse连接
-    _testParseConnection().then((_) {
-      // 无论连接测试结果如何，都尝试加载问题
-      _loadQuestionsWithFallback();
-    });
+    // 直接加载问题
+    _loadQuestionsFromCache();
   }
 
   @override
@@ -204,26 +201,8 @@ class _ForumScreenState extends State<ForumScreen> {
     super.dispose();
   }
 
-  // 测试Parse连接
-  Future<void> _testParseConnection() async {
-    print('开始测试Parse连接...');
-    // 创建临时对象测试连接
-    final testObject = ParseObject('TestObject')
-      ..set('message', 'Flutter连接测试 ${DateTime.now().toString()}');
-    try {
-      final response = await testObject.save();
-      if (response.success) {
-        print('Parse连接正常: objectId=${response.results?.first.objectId}');
-      } else {
-        print('Parse连接失败: ${response.error?.message}');
-      }
-    } catch (e) {
-      print('Parse连接异常: $e');
-    }
-  }
-
-  // 加载问题，失败时使用本地数据
-  Future<void> _loadQuestionsWithFallback() async {
+  // 从缓存加载问题
+  Future<void> _loadQuestionsFromCache() async {
     setState(() {
       _isLoading = true;
       _errorMessage = '';
@@ -233,14 +212,7 @@ class _ForumScreenState extends State<ForumScreen> {
       print('开始加载问题数据...');
       await _loadQuestions();
       
-      // 如果没有数据，强制创建示例数据
-      if (_questions.isEmpty) {
-        print('没有数据，强制创建示例数据');
-        await _createForceSampleData();
-        await _loadQuestions(); // 再次加载
-      }
-      
-      // 如果还是没有数据，使用本地数据
+      // 如果没有数据，使用本地数据
       if (_questions.isEmpty) {
         _useLocalData();
       }
@@ -564,7 +536,7 @@ class _ForumScreenState extends State<ForumScreen> {
                             ),
                             const SizedBox(height: 24),
                             ElevatedButton(
-                              onPressed: _loadQuestionsWithFallback,
+                              onPressed: _loadQuestionsFromCache,
                               child: const Text('重试'),
                             ),
                           ],

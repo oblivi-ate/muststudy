@@ -23,10 +23,15 @@ class _AchievementListScreenState extends State<AchievementListScreen> {
   @override
   void initState() {
     super.initState();
-    _loadAchievements();
+    // 使用 Future.delayed 确保 UI 已经渲染完成
+    Future.delayed(Duration.zero, () {
+      _loadAchievements();
+    });
   }
   
   Future<void> _loadAchievements() async {
+    if (!mounted) return;
+    
     setState(() {
       _isLoading = true;
     });
@@ -38,19 +43,12 @@ class _AchievementListScreenState extends State<AchievementListScreen> {
       
       if (username.isNotEmpty) {
         // 获取用户ID
-        final query = QueryBuilder<ParseObject>(ParseObject('Userinfo'))
-          ..whereEqualTo('u_name', username);
-        final userResponse = await query.query();
-        
-        int userId = 1; // 默认使用ID为1
-        
-        if (userResponse.success && userResponse.results != null && userResponse.results!.isNotEmpty) {
-          final userObj = userResponse.results!.first as ParseObject;
-          userId = userObj.get<int>('u_id') ?? 1;
-        }
+        final userId = await _getUserId(username);
         
         // 使用用户ID获取成就
         final parseAchievements = await _achievementRepository.fetchAchievements(userId);
+        
+        if (!mounted) return;
         
         if (parseAchievements.isNotEmpty) {
           final achievements = parseAchievements.map((parseObj) => Achievement.fromParseObject(parseObj)).toList();
@@ -61,27 +59,52 @@ class _AchievementListScreenState extends State<AchievementListScreen> {
           });
         } else {
           // 如果没有成就数据，使用默认成就
-          setState(() {
-            _achievements = [];
-            _isLoading = false;
-          });
+          _loadDefaultAchievements();
         }
       } else {
         // 未登录，使用默认成就
-        setState(() {
-          _achievements = [];
-          _isLoading = false;
-        });
+        _loadDefaultAchievements();
       }
     } catch (e) {
       debugPrint('Error loading achievements: $e');
-      setState(() {
-        _achievements = [];
-        _isLoading = false;
-      });
+      _loadDefaultAchievements();
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
     }
   }
-  
+
+  // 获取用户ID
+  Future<int> _getUserId(String username) async {
+    try {
+      final query = QueryBuilder<ParseObject>(ParseObject('Userinfo'))
+        ..whereEqualTo('u_name', username);
+      final userResponse = await query.query();
+      
+      if (userResponse.success && userResponse.results != null && userResponse.results!.isNotEmpty) {
+        final userObj = userResponse.results!.first as ParseObject;
+        return userObj.get<int>('u_id') ?? 1;
+      }
+      return 1; // 默认使用ID为1
+    } catch (e) {
+      debugPrint('Error getting user ID: $e');
+      return 1;
+    }
+  }
+
+  // 加载默认成就
+  void _loadDefaultAchievements() {
+    if (!mounted) return;
+    
+    setState(() {
+      _achievements = [];
+      _isLoading = false;
+    });
+  }
+
   void _updateAchievementStats(List<Achievement> achievements) {
     _totalAchievements = achievements.length;
     _unlockedAchievements = achievements.where((a) => !a.isLocked).length;
@@ -113,7 +136,22 @@ class _AchievementListScreenState extends State<AchievementListScreen> {
         ),
       ),
       body: _isLoading
-      ? const Center(child: CircularProgressIndicator())
+      ? const Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              CircularProgressIndicator(),
+              SizedBox(height: 16),
+              Text(
+                '正在加载成就数据...',
+                style: TextStyle(
+                  fontSize: 16,
+                  color: Colors.grey,
+                ),
+              ),
+            ],
+          ),
+        )
       : Stack(
         children: [
           Container(
