@@ -17,6 +17,7 @@ import 'package:muststudy/screens/settings_help.dart';
 import 'package:muststudy/screens/settings_contact.dart';
 import 'package:muststudy/screens/settings_feedback.dart';
 import '../screens/ai_assistant_screen.dart';
+import 'package:muststudy/screens/forum_update_questions.dart';
 
 // 路由参数类
 class RouteArguments {
@@ -58,6 +59,7 @@ class RouteNames {
   static const String resourceDetails = '/resources/details';
   static const String forum = '/forum';
   static const String problemDetails = '/forum/problem';
+  static const String uploadQuestions = '/forum/upload_questions';
   static const String profile = '/profile';
   static const String settings = '/settings';
   static const String favorites = '/profile/favorites';
@@ -135,6 +137,8 @@ class AppRouter {
         return RouteTransitions.slideTransition(
           ProblemDetails(problem: args.data),
         );
+      case RouteNames.uploadQuestions:
+        return RouteTransitions.slideTransition(const ForumUpdateQuestionsScreen());
       case RouteNames.profile:
         return RouteTransitions.slideTransition(const ProfileScreen());
       case RouteNames.settings:

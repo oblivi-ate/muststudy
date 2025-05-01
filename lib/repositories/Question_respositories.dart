@@ -126,33 +126,51 @@ class QuestionRepository {
     }
   }
 
-  // 根据学院和标签筛选问题
+  // 根据条件筛选问题
   Future<List<ParseObject>> filterQuestions({
-    String college = '全部',
-    String tag = '全部',
-    String searchQuery = '',
+    String? college,
+    String? tag,
+    String? searchQuery,
   }) async {
     try {
-      // 尝试获取所有问题（可能从缓存）
+      // 先获取所有问题
       final allQuestions = await fetchQuestions();
       
       // 在本地进行筛选
       return allQuestions.where((q) {
         final qCollege = q.get<String>('q_college') ?? '';
+        final qMajor = q.get<String>('q_major') ?? '';
         final qTags = q.get<List>('q_tags') ?? [];
         final qTitle = q.get<String>('q_title') ?? '';
-        final qDesc = q.get<String>('q_description') ?? '';
+        final qDescription = q.get<String>('q_description') ?? '';
+        final qInformation = q.get<String>('q_information') ?? '';
         
-        final matchesCollege = college == '全部' || qCollege == college;
-        final matchesTag = tag == '全部' || (qTags is List && qTags.contains(tag));
-        final matchesSearch = searchQuery.isEmpty || 
-            qTitle.toLowerCase().contains(searchQuery.toLowerCase()) ||
-            qDesc.toLowerCase().contains(searchQuery.toLowerCase());
-            
-        return matchesCollege && matchesTag && matchesSearch;
+        // 检查学院筛选
+        if (college != null && college != '全部' && qCollege != college) {
+          return false;
+        }
+        
+        // 检查标签筛选
+        if (tag != null && tag != '全部' && !(qTags is List && qTags.contains(tag))) {
+          return false;
+        }
+        
+        // 检查搜索关键词
+        if (searchQuery != null && searchQuery.isNotEmpty) {
+          final searchLower = searchQuery.toLowerCase();
+          if (!qTitle.toLowerCase().contains(searchLower) &&
+              !qDescription.toLowerCase().contains(searchLower) &&
+              !qInformation.toLowerCase().contains(searchLower) &&
+              !qCollege.toLowerCase().contains(searchLower) &&
+              !qMajor.toLowerCase().contains(searchLower)) {
+            return false;
+          }
+        }
+        
+        return true;
       }).toList();
     } catch (e) {
-      print('Repository: 筛选问题失败，错误: $e');
+      print('筛选问题失败: $e');
       return [];
     }
   }
