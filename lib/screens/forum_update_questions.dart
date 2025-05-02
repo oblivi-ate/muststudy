@@ -191,61 +191,53 @@ class _ForumUpdateQuestionsScreenState extends State<ForumUpdateQuestionsScreen>
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text('题目标题:', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                    const Text('课程编号:', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
                     const SizedBox(height: 8),
                     TextFormField(
                       controller: _titleController,
                       decoration: const InputDecoration(
                         border: OutlineInputBorder(),
-                        hintText: '请输入题目标题',
+                        hintText: '请输入课程编号',
                       ),
                     ),
                     const SizedBox(height: 16),
                     const Text('选择学院:', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
                     const SizedBox(height: 8),
-                    Wrap(
-                      spacing: 8,
-                      children: _colleges.map((c) => ChoiceChip(
-                            label: Text(c),
-                            selected: _selectedCollege == c,
-                            onSelected: (selected) {
-                              setState(() {
-                                _selectedCollege = c;
-                                // 更新专业默认值
-                                _selectedMajor = _majorMap[_selectedCollege]!.first;
-                              });
-                            },
-                            selectedColor: Colors.blue.shade100,
+                    DropdownButtonFormField<String>(
+                      decoration: const InputDecoration(labelText: '选择学院'),
+                      value: _selectedCollege,
+                      items: _colleges.map((c) => DropdownMenuItem<String>(
+                            value: c,
+                            child: Text(c),
                           )).toList(),
+                      onChanged: (value) {
+                        if (value != null) {
+                          setState(() {
+                            _selectedCollege = value;
+                            _selectedMajor = _majorMap[_selectedCollege]!.first;
+                          });
+                        }
+                      },
                     ),
                     const SizedBox(height: 16),
                     const Text('选择专业:', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
                     const SizedBox(height: 8),
-                    Wrap(
-                      spacing: 8,
-                      children: _majorMap[_selectedCollege]!.map((m) => ChoiceChip(
-                            label: Text(m),
-                            selected: _selectedMajor == m,
-                            onSelected: (selected) => setState(() {
-                              _selectedMajor = m;
-                            }),
-                            selectedColor: Colors.blue.shade100,
+                    DropdownButtonFormField<String>(
+                      decoration: const InputDecoration(labelText: '选择专业'),
+                      value: _selectedMajor,
+                      items: _majorMap[_selectedCollege]!.map((m) => DropdownMenuItem<String>(
+                            value: m,
+                            child: Text(m),
                           )).toList(),
+                      onChanged: (value) {
+                        if (value != null) {
+                          setState(() {
+                            _selectedMajor = value;
+                          });
+                        }
+                      },
                     ),
                     const SizedBox(height: 16),
-                    const Text('题目描述:', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-                    const SizedBox(height: 8),
-                    TextFormField(
-                      controller: _descriptionController,
-                      maxLines: 5,
-                      decoration: const InputDecoration(
-                        border: OutlineInputBorder(),
-                        hintText: '请输入题目描述',
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-                    const Text('题目内容:', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-                    const SizedBox(height: 8),
                     TextFormField(
                       controller: _informationController,
                       maxLines: 5,
@@ -302,8 +294,6 @@ class _ForumUpdateQuestionsScreenState extends State<ForumUpdateQuestionsScreen>
                       ],
                     ),
                     const SizedBox(height: 16),
-                    const Text('属性标签 (# 开头自动补全):', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-                    const SizedBox(height: 8),
                     Autocomplete<String>(
                       optionsBuilder: (TextEditingValue value) {
                         final text = value.text;
@@ -344,7 +334,6 @@ class _ForumUpdateQuestionsScreenState extends State<ForumUpdateQuestionsScreen>
                       width: double.infinity,
                       child: ElevatedButton(
                         onPressed: _submit,
-                        style: ElevatedButton.styleFrom(padding: const EdgeInsets.symmetric(vertical: 16)),
                         child: const Text('上传题目'),
                       ),
                     ),
