@@ -6,23 +6,7 @@ import '../services/navigation_service.dart';
 class App extends StatelessWidget {
   const App({super.key});
 
-  static Future<void> initialize() async {
-    WidgetsFlutterBinding.ensureInitialized();
 
-    // 初始化 Parse
-    try {
-      await Parse().initialize(
-        'B3nFoESSc6GUUQHgFCmFzvf7RQKliagLarf7Rs3g',
-        'https://parseapi.back4app.com',
-        clientKey: 'Y43iPlZRj7XgjqTR56PG48PAxhnPgf4QeeSMtWIv',
-        debug: true,
-        autoSendSessionId: true,
-      );
-      print('Parse 初始化成功');
-    } catch (e) {
-      print('Parse 初始化失败: $e');
-    }
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -40,4 +24,4 @@ class App extends StatelessWidget {
       debugShowCheckedModeBanner: false,
     );
   }
-} 
+}

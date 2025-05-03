@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:parse_server_sdk_flutter/parse_server_sdk_flutter.dart';
 import '../repositories/Userinfo_respositories.dart';
 import '../widgets/danmu_widget.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -285,40 +286,29 @@ class _LoginScreenState extends State<LoginScreen> {
     });
 
     try {
-      // 测试数据
-      final testUsers = [
-        {'u_name': 'test', 'u_password': '123456'},
-        {'u_name': 'admin', 'u_password': 'admin'},
-      ];
-
-      // 查找匹配的用户
-      bool found = false;
-      String username = '';
-      for (var user in testUsers) {
-        if (user['u_name'] == _usernameController.text &&
-            user['u_password'] == _passwordController.text) {
-          found = true;
-          username = user['u_name']!;
-          break;
-        }
-      }
-
-      if (found) {
-        // 保存当前用户名到SharedPreferences
-        final prefs = await SharedPreferences.getInstance();
-        await prefs.setString('currentUsername', username);
+      final query = QueryBuilder<ParseObject>(ParseObject('Userinfo'))
+        ..whereEqualTo('u_name', _usernameController.text)
+        ..whereEqualTo('u_password', _passwordController.text);
+      
+      final response = await query.query();
+      
+      if (response.success && response.results != null && response.results!.isNotEmpty) {
+        final user = response.results!.first;
+        final username = user.get<String>('u_name');
         
-        // 登录成功
+        // Save current username to SharedPreferences
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setString('currentUsername', username!);
+        
+        // Login successful
         if (!mounted) return;
-        print('登录成功，准备跳转');
         RouteGuard.setLoggedIn(true);
-        // 使用 Navigator.of(context) 直接跳转
         Navigator.of(context).pushNamedAndRemoveUntil(
           RouteNames.home,
           (route) => false,
         );
       } else {
-        // 登录失败
+        // Login failed
         if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -354,51 +344,51 @@ class _LoginScreenState extends State<LoginScreen> {
     });
 
     try {
-      // 获取所有用户以检查用户名是否已存在
-      final userList = await _userinfoRepository.fetchUserinfo();
+      // Check if username already exists
+      final query = QueryBuilder<ParseObject>(ParseObject('Userinfo'))
+        ..whereEqualTo('u_name', _usernameController.text);
+      final response = await query.query();
       
-      if (userList != null) {
-        final isUserExists = userList.any(
-          (user) => user.get<String>('u_name') == _usernameController.text
-        );
-
-        if (isUserExists) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(
-                'Username already exists',
-                style: _pixelTextStyleError,
-              ),
-            ),
-          );
-          return;
-        }
-
-        // 创建新用户
-        final newUserId = userList.length + 1;
-        await _userinfoRepository.createUserinfoItem(
-          newUserId,
-          _usernameController.text,
-          _passwordController.text,
-        );
-
-        // 保存当前用户名到SharedPreferences
-        final prefs = await SharedPreferences.getInstance();
-        await prefs.setString('currentUsername', _usernameController.text);
-        
+      if (response.success && response.results != null && response.results!.isNotEmpty) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(
-              'Registration successful! You can now log in.',
+              'Username already exists',
               style: _pixelTextStyleError,
             ),
           ),
         );
-        
-        setState(() {
-          _isLogin = true;
-        });
+        return;
       }
+
+      // Get the count of existing users for new user ID
+      final countQuery = QueryBuilder<ParseObject>(ParseObject('Userinfo'));
+      final countResponse = await countQuery.count();
+      final newUserId = (countResponse.count ?? 0) + 1;
+
+      // Create new user
+      await _userinfoRepository.createUserinfoItem(
+        newUserId,
+        _usernameController.text,
+        _passwordController.text,
+      );
+
+      // Save current username to SharedPreferences
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString('currentUsername', _usernameController.text);
+      
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'Registration successful! You can now log in.',
+            style: _pixelTextStyleError,
+          ),
+        ),
+      );
+      
+      setState(() {
+        _isLogin = true;
+      });
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -431,4 +421,4 @@ class _LoginScreenState extends State<LoginScreen> {
     _passwordController.dispose();
     super.dispose();
   }
-} 
+}
