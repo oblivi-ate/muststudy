@@ -514,10 +514,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
             icon: Icons.history,
             title: '学习记录',
             onTap: () {
-              // 跳转到学习记录页面
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('学习记录功能即将上线')),
-              );
+              Navigator.pushNamed(context, RouteNames.studyRecord);
             },
           ),
           _buildDivider(),
