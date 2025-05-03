@@ -32,6 +32,7 @@ dependencies:
     sdk: flutter
   parse_server_sdk_flutter: ^9.0.0
   shared_preferences: ^2.2.2
+  fl_chart: ^0.55.2
   intl: ^0.20.2
   cupertino_icons: ^1.0.2
   idb_shim: ^2.3.2
@@ -40,6 +41,8 @@ dependencies:
   google_fonts: ^4.0.4
   flutter_svg: ^1.0.3
   font_awesome_flutter: ^10.4.0
+  image_picker: ^0.8.7+4
+  url_launcher: ^6.3.1
 
 dev_dependencies:
   flutter_test:

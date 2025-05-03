@@ -5,6 +5,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../theme/app_theme.dart';
 import '../repositories/Userinfo_respositories.dart';
 import '../routes/app_router.dart';
+import 'dart:convert';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({Key? key}) : super(key: key);
@@ -27,27 +28,84 @@ class _ProfileScreenState extends State<ProfileScreen> {
     'achievements': 0,
   };
 
+  // 缓存键
+  static const String _userInfoCacheKey = 'cached_user_info';
+  static const String _userStatsCacheKey = 'cached_user_stats';
+  static const Duration _cacheDuration = Duration(minutes: 5);
+
   @override
   void initState() {
     super.initState();
-    // 确保UserStatistics表存在
-    _initUserStatisticsTable();
-    _loadUserData();
+    // 先尝试从缓存加载数据
+    _loadCachedData().then((_) {
+      // 然后从网络加载最新数据
+      _loadUserData();
+    });
   }
 
-  // 初始化UserStatistics表
-  Future<void> _initUserStatisticsTable() async {
+  // 从缓存加载数据
+  Future<void> _loadCachedData() async {
     try {
-      // 检查表是否存在，如果不存在则创建
-      final ParseObject userStats = ParseObject('UserStatistics');
-      await userStats.save(); // 这将尝试创建表（如果不存在）
+      final prefs = await SharedPreferences.getInstance();
+      
+      // 加载缓存的用户信息
+      final cachedUserInfo = prefs.getString(_userInfoCacheKey);
+      if (cachedUserInfo != null) {
+        final userInfo = jsonDecode(cachedUserInfo);
+        setState(() {
+          _username = userInfo['username'] ?? '未登录';
+          _userId = userInfo['userId'] ?? 0;
+        });
+      }
+      
+      // 加载缓存的统计数据
+      final cachedStats = prefs.getString(_userStatsCacheKey);
+      if (cachedStats != null) {
+        final stats = jsonDecode(cachedStats);
+        setState(() {
+          _statistics = stats;
+          _level = _userinfoRepository.getUserLevel(stats['solvedProblems']);
+        });
+      }
     } catch (e) {
-      print('初始化UserStatistics表失败: $e');
+      print('加载缓存数据失败: $e');
     }
+  }
+
+  // 保存数据到缓存
+  Future<void> _cacheUserData() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      
+      // 缓存用户信息
+      final userInfo = {
+        'username': _username,
+        'userId': _userId,
+        'timestamp': DateTime.now().millisecondsSinceEpoch,
+      };
+      await prefs.setString(_userInfoCacheKey, jsonEncode(userInfo));
+      
+      // 缓存统计数据
+      final stats = {
+        ..._statistics,
+        'timestamp': DateTime.now().millisecondsSinceEpoch,
+      };
+      await prefs.setString(_userStatsCacheKey, jsonEncode(stats));
+    } catch (e) {
+      print('缓存数据失败: $e');
+    }
+  }
+
+  // 检查缓存是否过期
+  bool _isCacheExpired(int timestamp) {
+    final cacheTime = DateTime.fromMillisecondsSinceEpoch(timestamp);
+    return DateTime.now().difference(cacheTime) > _cacheDuration;
   }
 
   // 加载用户数据
   Future<void> _loadUserData() async {
+    if (!mounted) return;
+    
     setState(() {
       _isLoading = true;
     });
@@ -58,53 +116,53 @@ class _ProfileScreenState extends State<ProfileScreen> {
       final username = prefs.getString('currentUsername') ?? '';
       
       if (username.isNotEmpty) {
-        // 查询用户信息
-        final query = QueryBuilder<ParseObject>(ParseObject('Userinfo'))
-          ..whereEqualTo('u_name', username);
-        final response = await query.query();
+        // 并行加载用户信息和统计数据
+        await Future.wait([
+          _loadUserInfo(username),
+          _loadUserStatistics(_userId),
+        ]);
         
-        if (response.success && response.results != null && response.results!.isNotEmpty) {
-          final userObj = response.results!.first as ParseObject;
-          
-          setState(() {
-            _username = userObj.get<String>('u_name') ?? '未知用户';
-            _userId = userObj.get<int>('u_id') ?? 0;
-            
-            // 模拟加载用户的学习数据
-            _loadUserStatistics(_userId);
-          });
-        } else {
-          print('未找到用户信息');
-          // 尝试使用测试用户数据
-          _loadTestUserData();
-        }
+        // 保存到缓存
+        _cacheUserData();
       } else {
         print('未登录或无用户信息');
-        // 使用测试用户数据
         _loadTestUserData();
       }
     } catch (e) {
       print('加载用户数据失败: $e');
-      // 使用测试用户数据
       _loadTestUserData();
     } finally {
-      setState(() {
-        _isLoading = false;
-      });
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
     }
   }
 
-  // 加载测试用户数据
-  void _loadTestUserData() {
-    setState(() {
-      // 使用登录页面里的测试用户数据
-      _username = 'test';
-      _userId = 1;
-      _level = 'Lv.5 勤奋学习者';
+  // 加载用户信息
+  Future<void> _loadUserInfo(String username) async {
+    try {
+      final query = QueryBuilder<ParseObject>(ParseObject('Userinfo'))
+        ..whereEqualTo('u_name', username);
+      final response = await query.query();
       
-      // 加载测试统计数据
-      _loadUserStatistics(_userId);
-    });
+      if (response.success && response.results != null && response.results!.isNotEmpty) {
+        final userObj = response.results!.first as ParseObject;
+        
+        if (!mounted) return;
+        setState(() {
+          _username = userObj.get<String>('u_name') ?? '未知用户';
+          _userId = userObj.get<int>('u_id') ?? 0;
+        });
+      } else {
+        print('未找到用户信息');
+        _loadTestUserData();
+      }
+    } catch (e) {
+      print('加载用户信息失败: $e');
+      _loadTestUserData();
+    }
   }
 
   // 加载用户统计数据
@@ -113,6 +171,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       // 从后端获取用户的学习统计数据
       final userStats = await _userinfoRepository.getUserStatistics(userId);
       
+      if (!mounted) return;
       setState(() {
         _statistics = userStats;
         _level = _userinfoRepository.getUserLevel(userStats['solvedProblems']);
@@ -120,6 +179,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     } catch (e) {
       print('加载用户统计数据失败: $e');
       // 使用模拟数据作为备选
+      if (!mounted) return;
       setState(() {
         if (userId == 1) { // test用户
           _statistics = {
@@ -172,7 +232,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     return Scaffold(
       backgroundColor: const Color(0xFFFFE4D4),
       body: _isLoading
-      ? const Center(child: CircularProgressIndicator())
+      ? _buildSkeletonLoading()
       : Stack(
         children: [
           Container(
@@ -454,10 +514,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
             icon: Icons.history,
             title: '学习记录',
             onTap: () {
-              // 跳转到学习记录页面
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('学习记录功能即将上线')),
-              );
+              Navigator.pushNamed(context, RouteNames.studyRecord);
             },
           ),
           _buildDivider(),
@@ -809,6 +866,245 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 ),
               ),
             ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  // 加载测试用户数据
+  void _loadTestUserData() {
+    setState(() {
+      // 使用登录页面里的测试用户数据
+      _username = 'test';
+      _userId = 1;
+      _level = 'Lv.5 勤奋学习者';
+      
+      // 加载测试统计数据
+      _loadUserStatistics(_userId);
+    });
+  }
+
+  // 骨架屏加载效果
+  Widget _buildSkeletonLoading() {
+    return Stack(
+      children: [
+        Container(
+          height: 300,
+          width: double.infinity,
+          decoration: const BoxDecoration(
+            image: DecorationImage(
+              image: AssetImage('assets/img.png'),
+              fit: BoxFit.cover,
+            ),
+          ),
+        ),
+        Column(
+          children: [
+            // 顶部个人信息骨架屏
+            SafeArea(
+              child: Container(
+                padding: const EdgeInsets.only(top: 20, bottom: 30),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Container(
+                      width: 80,
+                      height: 80,
+                      decoration: BoxDecoration(
+                        color: Colors.white.withOpacity(0.3),
+                        shape: BoxShape.circle,
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    Container(
+                      width: 120,
+                      height: 24,
+                      decoration: BoxDecoration(
+                        color: Colors.white.withOpacity(0.3),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Container(
+                      width: 100,
+                      height: 20,
+                      decoration: BoxDecoration(
+                        color: Colors.white.withOpacity(0.3),
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            // 内容区域骨架屏
+            Expanded(
+              child: ClipRRect(
+                borderRadius: const BorderRadius.vertical(
+                  top: Radius.circular(30),
+                ),
+                child: Container(
+                  width: double.infinity,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFFFF8F3),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.05),
+                        blurRadius: 10,
+                        offset: const Offset(0, -2),
+                      ),
+                    ],
+                  ),
+                  child: SingleChildScrollView(
+                    child: Column(
+                      children: [
+                        const SizedBox(height: 20),
+                        _buildSkeletonStatisticsCard(),
+                        const SizedBox(height: 16),
+                        _buildSkeletonFunctionList(),
+                        const SizedBox(height: 20),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  // 统计数据卡片骨架屏
+  Widget _buildSkeletonStatisticsCard() {
+    return Container(
+      margin: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.grey.withOpacity(0.1),
+            spreadRadius: 1,
+            blurRadius: 10,
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            width: 80,
+            height: 24,
+            decoration: BoxDecoration(
+              color: Colors.grey[300],
+              borderRadius: BorderRadius.circular(12),
+            ),
+          ),
+          const SizedBox(height: 16),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceAround,
+            children: List.generate(3, (index) => _buildSkeletonStatItem()),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // 统计项目骨架屏
+  Widget _buildSkeletonStatItem() {
+    return Column(
+      children: [
+        Container(
+          width: 48,
+          height: 48,
+          decoration: BoxDecoration(
+            color: Colors.grey[300],
+            shape: BoxShape.circle,
+          ),
+        ),
+        const SizedBox(height: 8),
+        Container(
+          width: 40,
+          height: 20,
+          decoration: BoxDecoration(
+            color: Colors.grey[300],
+            borderRadius: BorderRadius.circular(10),
+          ),
+        ),
+        const SizedBox(height: 4),
+        Container(
+          width: 60,
+          height: 16,
+          decoration: BoxDecoration(
+            color: Colors.grey[300],
+            borderRadius: BorderRadius.circular(8),
+          ),
+        ),
+      ],
+    );
+  }
+
+  // 功能列表骨架屏
+  Widget _buildSkeletonFunctionList() {
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.grey.withOpacity(0.1),
+            spreadRadius: 1,
+            blurRadius: 10,
+          ),
+        ],
+      ),
+      child: Column(
+        children: List.generate(
+          6,
+          (index) => _buildSkeletonFunctionItem(),
+        ),
+      ),
+    );
+  }
+
+  // 功能项目骨架屏
+  Widget _buildSkeletonFunctionItem() {
+    return Padding(
+      padding: const EdgeInsets.symmetric(
+        horizontal: 20,
+        vertical: 16,
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 24,
+            height: 24,
+            decoration: BoxDecoration(
+              color: Colors.grey[300],
+              shape: BoxShape.circle,
+            ),
+          ),
+          const SizedBox(width: 16),
+          Container(
+            width: 100,
+            height: 20,
+            decoration: BoxDecoration(
+              color: Colors.grey[300],
+              borderRadius: BorderRadius.circular(10),
+            ),
+          ),
+          const Spacer(),
+          Container(
+            width: 16,
+            height: 16,
+            decoration: BoxDecoration(
+              color: Colors.grey[300],
+              shape: BoxShape.circle,
+            ),
           ),
         ],
       ),

@@ -10,6 +10,7 @@ import '../services/navigation_service.dart';
 import '../repositories/Question_respositories.dart';
 import '../repositories/Q_tag_respositories.dart';
 import '../repositories/Answer_respositories.dart';
+import 'package:muststudy/routes/app_router.dart';
 
 class ForumScreen extends StatefulWidget {
   const ForumScreen({Key? key}) : super(key: key);
@@ -85,39 +86,10 @@ class _ForumScreenState extends State<ForumScreen> {
 
   // 添加不同学院的标签映射
   final Map<String, List<String>> _collegeCategories = {
-    '全部': [
-      '全部',
-      '算法',
-      '数据结构',
-      '系统设计',
-      '数据库',
-      '前端开发',
-      '后端开发'
-    ],
-    '创新工程学院': [
-      '全部',
-      '算法',
-      '数据结构',
-      '系统设计',
-      '数据库',
-      '前端开发',
-      '后端开发'
-    ],
-    '商学院': [
-      '全部',
-      '会计',
-      '金融',
-      '市场营销',
-      '经济学',
-      '管理学'
-    ],
-    '国际学院': [
-      '全部',
-      '国际贸易',
-      '商务英语',
-      '跨文化管理',
-      '国际金融'
-    ],
+    '全部': ['全部', 'SE462', 'SE460', 'SE250'],
+    '创新工程学院': ['全部', 'SE462', 'SE460', 'SE250'],
+    '商学院': ['全部', '会计', '金融', '市场营销', '经济学', '管理学'],
+    '国际学院': ['全部', '国际贸易', '商务英语', '跨文化管理', '国际金融'],
   };
 
   void _showCollegeSelector(BuildContext context) {
@@ -191,11 +163,8 @@ class _ForumScreenState extends State<ForumScreen> {
       });
     });
     
-    // 测试Parse连接
-    _testParseConnection().then((_) {
-      // 无论连接测试结果如何，都尝试加载问题
-      _loadQuestionsWithFallback();
-    });
+    // 直接加载问题
+    _loadQuestionsFromCache();
   }
 
   @override
@@ -204,26 +173,8 @@ class _ForumScreenState extends State<ForumScreen> {
     super.dispose();
   }
 
-  // 测试Parse连接
-  Future<void> _testParseConnection() async {
-    print('开始测试Parse连接...');
-    // 创建临时对象测试连接
-    final testObject = ParseObject('TestObject')
-      ..set('message', 'Flutter连接测试 ${DateTime.now().toString()}');
-    try {
-      final response = await testObject.save();
-      if (response.success) {
-        print('Parse连接正常: objectId=${response.results?.first.objectId}');
-      } else {
-        print('Parse连接失败: ${response.error?.message}');
-      }
-    } catch (e) {
-      print('Parse连接异常: $e');
-    }
-  }
-
-  // 加载问题，失败时使用本地数据
-  Future<void> _loadQuestionsWithFallback() async {
+  // 从缓存加载问题
+  Future<void> _loadQuestionsFromCache() async {
     setState(() {
       _isLoading = true;
       _errorMessage = '';
@@ -233,14 +184,7 @@ class _ForumScreenState extends State<ForumScreen> {
       print('开始加载问题数据...');
       await _loadQuestions();
       
-      // 如果没有数据，强制创建示例数据
-      if (_questions.isEmpty) {
-        print('没有数据，强制创建示例数据');
-        await _createForceSampleData();
-        await _loadQuestions(); // 再次加载
-      }
-      
-      // 如果还是没有数据，使用本地数据
+      // 如果没有数据，使用本地数据
       if (_questions.isEmpty) {
         _useLocalData();
       }
@@ -368,6 +312,7 @@ class _ForumScreenState extends State<ForumScreen> {
       return _questions.where((q) {
         // 获取问题数据
         final college = q.get<String>('q_college') ?? '';
+        final major = q.get<String>('q_major') ?? '';
         final tags = q.get<List>('q_tags') ?? [];
         final title = q.get<String>('q_title') ?? '';
         final description = q.get<String>('q_description') ?? '';
@@ -378,7 +323,9 @@ class _ForumScreenState extends State<ForumScreen> {
             (tags is List && tags.contains(_selectedCategory));
         final matchesSearch = _searchQuery.isEmpty || 
             title.toLowerCase().contains(_searchQuery.toLowerCase()) ||
-            description.toLowerCase().contains(_searchQuery.toLowerCase());
+            description.toLowerCase().contains(_searchQuery.toLowerCase()) ||
+            college.toLowerCase().contains(_searchQuery.toLowerCase()) ||
+            major.toLowerCase().contains(_searchQuery.toLowerCase());
             
         return matchesCollege && matchesTag && matchesSearch;
       }).toList();
@@ -458,16 +405,6 @@ class _ForumScreenState extends State<ForumScreen> {
           IconButton(
             icon: const Icon(Icons.notifications_none, color: Colors.black87),
             onPressed: () {},
-          ),
-          IconButton(
-            icon: const Icon(Icons.upload_file),
-            onPressed: () {
-              Navigator.pushNamed(context, '/create_problem').then((_) {
-                // 刷新题目列表
-                _loadQuestions();
-              });
-            },
-            tooltip: '上传题目',
           ),
         ],
       ),
@@ -564,7 +501,7 @@ class _ForumScreenState extends State<ForumScreen> {
                             ),
                             const SizedBox(height: 24),
                             ElevatedButton(
-                              onPressed: _loadQuestionsWithFallback,
+                              onPressed: _loadQuestionsFromCache,
                               child: const Text('重试'),
                             ),
                           ],
@@ -609,36 +546,15 @@ class _ForumScreenState extends State<ForumScreen> {
           ),
         ],
       ),
-      floatingActionButton: Stack(
-        children: [
-          Positioned(
-            bottom: 10,
-            right: 10,
-            child: FloatingActionButton(
-              heroTag: 'refresh',
-              onPressed: () {
-                // 刷新题目列表
-                _loadQuestions();
-              },
-              child: const Icon(Icons.refresh),
-            ),
-          ),
-          Positioned(
-            bottom: 10,
-            right: 80,
-            child: FloatingActionButton.extended(
-              heroTag: 'upload',
-              onPressed: () {
-                Navigator.pushNamed(context, '/create_problem').then((_) {
-                  // 刷新题目列表
-                  _loadQuestions();
-                });
-              },
-              label: const Text('上传题目'),
-              icon: const Icon(Icons.add),
-            ),
-          ),
-        ],
+      floatingActionButton: FloatingActionButton.extended(
+        heroTag: 'upload',
+        onPressed: () {
+          Navigator.pushNamed(context, RouteNames.uploadQuestions).then((_) {
+            _loadQuestions();
+          });
+        },
+        label: const Text('上传题目'),
+        icon: const Icon(Icons.add),
       ),
     );
   }
