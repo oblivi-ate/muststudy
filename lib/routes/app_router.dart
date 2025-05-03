@@ -10,7 +10,6 @@ import 'package:muststudy/screens/problem_details.dart';
 import 'package:muststudy/screens/profile_screen.dart';
 import 'package:muststudy/screens/settings_screen.dart';
 import 'package:muststudy/screens/settings_userinfo.dart';
-import 'package:muststudy/screens/settings_account_security.dart';
 import 'package:muststudy/screens/settings_language.dart';
 import 'package:muststudy/screens/settings_learning.dart';
 import 'package:muststudy/screens/settings_help.dart';
@@ -66,7 +65,6 @@ class RouteNames {
   static const String history = '/profile/history';
   static const String notes = '/profile/notes';
   static const String settingsUserInfo = 'settings_userinfo';
-  static const String settingsAccountSecurity = 'settings_account_security';
   static const String settingsLanguage = 'settings_language';
   static const String settingsLearning = 'settings_learning';
   static const String settingsHelp = 'settings_help';
@@ -145,8 +143,6 @@ class AppRouter {
         return RouteTransitions.slideTransition(const SettingsScreen());
       case 'settings_userinfo':
         return RouteTransitions.slideTransition(const SettingsUserInfoScreen());
-      case 'settings_account_security':
-        return RouteTransitions.slideTransition(const SettingsAccountSecurityScreen());
       case 'settings_language':
         return RouteTransitions.slideTransition(const SettingsLanguageScreen());
       case 'settings_learning':
