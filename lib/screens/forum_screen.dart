@@ -11,6 +11,7 @@ import '../repositories/Question_respositories.dart';
 import '../repositories/Q_tag_respositories.dart';
 import '../repositories/Answer_respositories.dart';
 import 'package:muststudy/routes/app_router.dart';
+import '../repositories/Userinfo_respositories.dart';
 
 class ForumScreen extends StatefulWidget {
   const ForumScreen({Key? key}) : super(key: key);
@@ -86,8 +87,8 @@ class _ForumScreenState extends State<ForumScreen> {
 
   // 添加不同学院的标签映射
   final Map<String, List<String>> _collegeCategories = {
-    '全部': ['全部', 'SE462', 'SE460', 'SE250'],
-    '创新工程学院': ['全部', 'SE462', 'SE460', 'SE250'],
+    '全部': ['全部', 'SE462', 'SE460', 'SE250', '算法', '数据结构', '系统设计', '数据库', '前端开发', '后端开发'],
+    '创新工程学院': ['全部', 'SE462', 'SE460', 'SE250', '算法', '数据结构', '系统设计', '数据库', '前端开发', '后端开发'],
     '商学院': ['全部', '会计', '金融', '市场营销', '经济学', '管理学'],
     '国际学院': ['全部', '国际贸易', '商务英语', '跨文化管理', '国际金融'],
   };
@@ -269,7 +270,14 @@ class _ForumScreenState extends State<ForumScreen> {
   Future<void> _loadQuestions() async {
     try {
       print('开始加载问题数据...');
-      final questions = await _questionRepository.fetchQuestions();
+      // 设置超时
+      final timeout = Future.delayed(const Duration(milliseconds: 300));
+      
+      final questions = await Future.any([
+        _questionRepository.fetchQuestions(),
+        timeout,
+      ]);
+      
       print('成功获取到${questions.length}个问题');
       if (questions.isNotEmpty) {
         for (var q in questions) {
@@ -293,7 +301,14 @@ class _ForumScreenState extends State<ForumScreen> {
 
   Future<void> _loadTags() async {
     try {
-      final tags = await _qtagRepository.fetchQtag();
+      // 设置超时
+      final timeout = Future.delayed(const Duration(milliseconds: 300));
+      
+      final tags = await Future.any([
+        _qtagRepository.fetchQtag(),
+        timeout,
+      ]);
+      
       if (tags != null) {
         setState(() {
           _tags = tags;
@@ -306,40 +321,18 @@ class _ForumScreenState extends State<ForumScreen> {
 
   // 使用修改过的筛选逻辑，基于学院和标签筛选问题
   Future<List<ParseObject>> _getFilteredQuestions() async {
-    // 如果使用的是本地数据，直接在本地进行筛选
-    if (_usingLocalData) {
-      print('使用本地数据进行筛选');
-      return _questions.where((q) {
-        // 获取问题数据
-        final college = q.get<String>('q_college') ?? '';
-        final major = q.get<String>('q_major') ?? '';
-        final tags = q.get<List>('q_tags') ?? [];
-        final title = q.get<String>('q_title') ?? '';
-        final description = q.get<String>('q_description') ?? '';
-        
-        // 检查是否符合筛选条件
-        final matchesCollege = _selectedCollege == '全部' || college == _selectedCollege;
-        final matchesTag = _selectedCategory == '全部' || 
-            (tags is List && tags.contains(_selectedCategory));
-        final matchesSearch = _searchQuery.isEmpty || 
-            title.toLowerCase().contains(_searchQuery.toLowerCase()) ||
-            description.toLowerCase().contains(_searchQuery.toLowerCase()) ||
-            college.toLowerCase().contains(_searchQuery.toLowerCase()) ||
-            major.toLowerCase().contains(_searchQuery.toLowerCase());
-            
-        return matchesCollege && matchesTag && matchesSearch;
-      }).toList();
-    }
-    
     try {
       print('筛选问题，学院: $_selectedCollege, 标签: $_selectedCategory, 搜索: $_searchQuery');
+      
       // 使用新的filterQuestions方法
       final filtered = await _questionRepository.filterQuestions(
-        college: _selectedCollege,
-        tag: _selectedCategory,
-        searchQuery: _searchQuery
+        college: _selectedCollege == '全部' ? null : _selectedCollege,
+        tag: _selectedCategory == '全部' ? null : _selectedCategory,
+        searchQuery: _searchQuery.isEmpty ? null : _searchQuery
       );
+      
       print('筛选结果: ${filtered.length}个问题');
+      print('标签: ${filtered.map((q) => q.get<List>('q_tags')).toList()}');
       return filtered;
     } catch (e) {
       print('筛选问题失败: $e');
@@ -374,6 +367,123 @@ class _ForumScreenState extends State<ForumScreen> {
     } catch (e) {
       print('提交解答失败: $e');
     }
+  }
+
+  // 点赞评论
+  Future<void> _likeComment(int qid, int commentIndex) async {
+    final userId = await UserinfoRepository().getUserId();
+    final isLiked = await _questionRepository.isCommentLiked(qid, commentIndex, userId);
+    
+    if (!isLiked) {
+      await _questionRepository.likeComment(qid, commentIndex, userId);
+      setState(() {});
+    }
+  }
+
+  // 切换题目完成状态
+  Future<void> _toggleQuestionCompletion(int qid) async {
+    final userId = await UserinfoRepository().getUserId();
+    await _questionRepository.toggleQuestionCompletion(qid, userId);
+    setState(() {});
+  }
+
+  // 检查题目完成状态
+  Future<bool> _isQuestionCompleted(int qid) async {
+    final userId = await UserinfoRepository().getUserId();
+    return await _questionRepository.isQuestionCompleted(qid, userId);
+  }
+
+  // 构建评论列表
+  Widget _buildComments(List<dynamic> comments, int questionId) {
+    return FutureBuilder<int>(
+      future: UserinfoRepository().getUserId(),
+      builder: (context, userIdSnapshot) {
+        if (!userIdSnapshot.hasData) {
+          return const SizedBox.shrink();
+        }
+        final userId = userIdSnapshot.data!;
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Padding(
+              padding: EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+              child: Text(
+                '评论',
+                style: TextStyle(
+                  fontSize: 16.0,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+            ListView.builder(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              itemCount: comments.length,
+              itemBuilder: (context, index) {
+                final comment = comments[index];
+                return FutureBuilder<bool>(
+                  future: _questionRepository.isCommentLiked(
+                    questionId,
+                    index,
+                    userId,
+                  ),
+                  builder: (context, snapshot) {
+                    final isLiked = snapshot.data ?? false;
+                    return Card(
+                      margin: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 4.0),
+                      child: Padding(
+                        padding: const EdgeInsets.all(12.0),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              comment['content'],
+                              style: const TextStyle(fontSize: 14.0),
+                            ),
+                            const SizedBox(height: 8.0),
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Text(
+                                  '用户${comment['user_id']}',
+                                  style: TextStyle(
+                                    fontSize: 12.0,
+                                    color: Colors.grey[600],
+                                  ),
+                                ),
+                                Row(
+                                  children: [
+                                    IconButton(
+                                      icon: Icon(
+                                        isLiked ? Icons.thumb_up : Icons.thumb_up_outlined,
+                                        size: 16.0,
+                                        color: isLiked ? Colors.blue : Colors.grey[600],
+                                      ),
+                                      onPressed: isLiked ? null : () => _likeComment(questionId, index),
+                                    ),
+                                    Text(
+                                      '${comment['likes'] ?? 0}',
+                                      style: TextStyle(
+                                        fontSize: 12.0,
+                                        color: Colors.grey[600],
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
+                      ),
+                    );
+                  },
+                );
+              },
+            ),
+          ],
+        );
+      },
+    );
   }
 
   @override
@@ -525,12 +635,6 @@ class _ForumScreenState extends State<ForumScreen> {
                                       color: Colors.grey[800],
                                     ),
                                   ),
-                                  if (_usingLocalData)
-                                    Chip(
-                                      label: const Text('使用本地数据'),
-                                      backgroundColor: Colors.amber[100],
-                                      labelStyle: TextStyle(color: Colors.amber[900], fontSize: 12),
-                                    ),
                                 ],
                               ),
                             ),
@@ -634,125 +738,61 @@ class _ForumScreenState extends State<ForumScreen> {
           itemCount: filteredQuestions.length,
           itemBuilder: (context, index) {
             final question = filteredQuestions[index];
-            final title = question.get<String>('q_title') ?? '无标题';
-            final description = question.get<String>('q_description') ?? '无描述';
-            final likeCount = question.get<int>('q_like') ?? 0;
             final questionId = question.get<int>('q_id') ?? 0;
-            final difficulty = question.get<String>('q_difficulty') ?? '未知';
-            final submissionCount = question.get<int>('q_submission_count') ?? 0;
-            final successCount = question.get<int>('q_success_count') ?? 0;
             
-            return Container(
-              margin: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 8.0),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(20),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.05),
-                    blurRadius: 10,
-                    offset: const Offset(0, 2),
-                  ),
-                ],
-              ),
-              child: InkWell(
-                borderRadius: BorderRadius.circular(20),
-                onTap: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => ProblemDetails(problem: question),
-                    ),
-                  );
-                },
-                child: Padding(
-                  padding: const EdgeInsets.all(16.0),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        children: [
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 4.0),
-                            decoration: BoxDecoration(
-                              color: difficulty == "简单"
-                                  ? Colors.green[50]
-                                  : difficulty == "中等"
-                                      ? Colors.orange[50]
-                                      : Colors.red[50],
-                              borderRadius: BorderRadius.circular(8.0),
-                            ),
-                            child: Text(
-                              difficulty,
-                              style: TextStyle(
-                                color: difficulty == "简单"
-                                    ? Colors.green[700]
-                                    : difficulty == "中等"
-                                        ? Colors.orange[700]
-                                        : Colors.red[700],
-                                fontSize: 12.0,
-                                fontWeight: FontWeight.w500,
-                              ),
-                            ),
-                          ),
-                          const SizedBox(width: 12.0),
-                          Expanded(
-                            child: Text(
-                              title,
-                              style: const TextStyle(
-                                fontSize: 16.0,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 12.0),
-                      Row(
-                        children: [
-                          Icon(Icons.check_circle_outline, size: 16.0, color: Colors.grey[600]),
-                          const SizedBox(width: 4.0),
-                          Text(
-                            "通过率: ${submissionCount > 0 ? (successCount / submissionCount * 100).toStringAsFixed(1) : "0.0"}%",
-                            style: TextStyle(
-                              color: Colors.grey[600],
-                              fontSize: 12.0,
-                            ),
-                          ),
-                          const SizedBox(width: 16.0),
-                          Icon(Icons.people_outline, size: 16.0, color: Colors.grey[600]),
-                          const SizedBox(width: 4.0),
-                          Text(
-                            "${submissionCount}人提交",
-                            style: TextStyle(
-                              color: Colors.grey[600],
-                              fontSize: 12.0,
-                            ),
-                          ),
-                          const Spacer(),
-                          // 添加点赞按钮
-                          InkWell(
-                            onTap: () => _likeQuestion(questionId),
-                            child: Row(
-                              children: [
-                                Icon(Icons.thumb_up_outlined, size: 16.0, color: Colors.grey[600]),
-                                const SizedBox(width: 4.0),
-                                Text(
-                                  "$likeCount",
-                                  style: TextStyle(
-                                    color: Colors.grey[600],
-                                    fontSize: 12.0,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ],
+            return FutureBuilder<bool>(
+              future: _isQuestionCompleted(questionId),
+              builder: (context, completedSnapshot) {
+                final isCompleted = completedSnapshot.data ?? false;
+                
+                return Container(
+                  margin: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 8.0),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(20),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.05),
+                        blurRadius: 10,
+                        offset: const Offset(0, 2),
                       ),
                     ],
                   ),
-                ),
-              ),
+                  child: Column(
+                    children: [
+                      ListTile(
+                        title: Text(
+                          question.get<String>('q_title') ?? '无标题',
+                          style: const TextStyle(
+                            fontSize: 16.0,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                        subtitle: Text(
+                          question.get<String>('q_description') ?? '无描述',
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        trailing: IconButton(
+                          icon: Icon(
+                            isCompleted ? Icons.check_circle : Icons.check_circle_outline,
+                            color: isCompleted ? Colors.green : Colors.grey,
+                          ),
+                          onPressed: () => _toggleQuestionCompletion(questionId),
+                        ),
+                        onTap: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => ProblemDetails(problem: question),
+                            ),
+                          );
+                        },
+                      ),
+                    ],
+                  ),
+                );
+              },
             );
           },
         );

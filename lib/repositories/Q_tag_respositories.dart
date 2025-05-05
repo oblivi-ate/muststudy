@@ -37,12 +37,10 @@ class QtagRepository {
   
   // 获取特定学院的标签
   Future<List<String>> getTagsByCollege(String college) async {
-    // 这里假设有一个College_Tags表存储不同学院的标签
-    // 如果没有这样的表，可以修改此方法直接返回预定义的标签列表
     if (college == '全部') {
-      return ['全部', '算法', '数据结构', '系统设计', '数据库', '前端开发', '后端开发'];
+      return ['全部', 'SE462', 'SE460', 'SE250', '算法', '数据结构', '系统设计', '数据库', '前端开发', '后端开发'];
     } else if (college == '创新工程学院') {
-      return ['全部', '算法', '数据结构', '系统设计', '数据库', '前端开发', '后端开发'];
+      return ['全部', 'SE462', 'SE460', 'SE250', '算法', '数据结构', '系统设计', '数据库', '前端开发', '后端开发'];
     } else if (college == '商学院') {
       return ['全部', '会计', '金融', '市场营销', '经济学', '管理学'];
     } else if (college == '国际学院') {

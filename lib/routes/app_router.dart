@@ -7,6 +7,7 @@ import 'package:muststudy/screens/learning_resources_screen.dart';
 import 'package:muststudy/screens/resource_details.dart';
 import 'package:muststudy/screens/forum_screen.dart';
 import 'package:muststudy/screens/problem_details.dart';
+import 'package:muststudy/screens/create_problem_screen.dart';
 import 'package:muststudy/screens/profile_screen.dart';
 import 'package:muststudy/screens/settings_screen.dart';
 import 'package:muststudy/screens/settings_userinfo.dart';
@@ -18,6 +19,7 @@ import 'package:muststudy/screens/settings_feedback.dart';
 import '../screens/ai_assistant_screen.dart';
 import 'package:muststudy/screens/forum_update_questions.dart';
 import 'package:muststudy/screens/study_record_screen.dart';
+import 'package:muststudy/screens/pomodoro_timer_screen.dart';
 
 // 路由参数类
 class RouteArguments {
@@ -60,6 +62,7 @@ class RouteNames {
   static const String forum = '/forum';
   static const String problemDetails = '/forum/problem';
   static const String uploadQuestions = '/forum/upload_questions';
+  static const String createProblem = '/create_problem';
   static const String profile = '/profile';
   static const String settings = '/settings';
   static const String favorites = '/profile/favorites';
@@ -73,6 +76,7 @@ class RouteNames {
   static const String feedback = '/feedback';
   static const String aiAssistant = '/ai-assistant';
   static const String studyRecord = 'study_record';
+  static const String pomodoroTimer = '/pomodoro_timer';
 }
 
 // 路由过渡动画
@@ -139,6 +143,8 @@ class AppRouter {
         );
       case RouteNames.uploadQuestions:
         return RouteTransitions.slideTransition(const ForumUpdateQuestionsScreen());
+      case RouteNames.createProblem:
+        return RouteTransitions.slideTransition(const CreateProblemScreen());
       case RouteNames.profile:
         return RouteTransitions.slideTransition(const ProfileScreen());
       case RouteNames.settings:
@@ -160,6 +166,16 @@ class AppRouter {
       case RouteNames.aiAssistant:
         return MaterialPageRoute(
           builder: (_) => const AIAssistantScreen(),
+        );
+      case RouteNames.pomodoroTimer:
+        final args = settings.arguments as RouteArguments;
+        final params = args.params ?? {};
+        return MaterialPageRoute(
+          builder: (_) => PomodoroTimerScreen(
+            hours: params['hours'] ?? 0,
+            minutes: params['minutes'] ?? 0,
+            userId: params['userId'] ?? 0,
+          ),
         );
       default:
         return RouteTransitions.fadeTransition(

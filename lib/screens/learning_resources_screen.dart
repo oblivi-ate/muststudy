@@ -219,7 +219,13 @@ class _LearningResourcesScreenState extends State<LearningResourcesScreen> {
 
     try {
       print('开始加载资源数据...');
-      final result = await _resourceRepository.fetchResources();
+      // 设置超时
+      final timeout = Future.delayed(const Duration(milliseconds: 300));
+      
+      final result = await Future.any([
+        _resourceRepository.fetchResources(),
+        timeout,
+      ]);
       
       if (!mounted) return;
       

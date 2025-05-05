@@ -38,9 +38,16 @@ class _StudyRecordScreenState extends State<StudyRecordScreen> {
       } catch (_) {}
     }
     if (_userId > 0) {
-      final list = await _repo.getStudyRecords(_userId);
+      // 设置超时
+      final timeout = Future.delayed(const Duration(milliseconds: 300));
+      
+      final list = await Future.any([
+        _repo.getStudyRecords(_userId),
+        timeout,
+      ]);
+      
       setState(() {
-        _records = list;
+        _records = list ?? [];
         _loading = false;
       });
     } else {

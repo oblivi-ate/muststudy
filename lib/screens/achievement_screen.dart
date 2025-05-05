@@ -32,6 +32,9 @@ class _AchievementScreenState extends State<AchievementScreen> {
 
   Future<void> _loadAchievements() async {
     try {
+      // 设置超时
+      final timeout = Future.delayed(const Duration(milliseconds: 300));
+      
       // 从SharedPreferences获取当前登录的用户信息
       final prefs = await SharedPreferences.getInstance();
       final username = prefs.getString('currentUsername') ?? '';
@@ -40,27 +43,61 @@ class _AchievementScreenState extends State<AchievementScreen> {
         // 获取用户ID
         final query = QueryBuilder<ParseObject>(ParseObject('Userinfo'))
           ..whereEqualTo('u_name', username);
-        final userResponse = await query.query();
+        final userResponse = await Future.any([query.query(), timeout]);
         
         int userId = 1; // 默认使用ID为1
         
-        if (userResponse.success && userResponse.results != null && userResponse.results!.isNotEmpty) {
+        if (userResponse is ParseResponse && userResponse.success && userResponse.results != null && userResponse.results!.isNotEmpty) {
           final userObj = userResponse.results!.first as ParseObject;
           userId = userObj.get<int>('u_id') ?? 1;
         }
         
         // 使用用户ID获取成就
-        final parseAchievements = await _achievementRepository.fetchAchievements(userId);
+        final achievements = await Future.any([
+          _achievementRepository.getAchievements(),
+          timeout,
+        ]);
         
-        if (parseAchievements.isNotEmpty) {
-          final achievements = parseAchievements.map((parseObj) => Achievement.fromParseObject(parseObj)).toList();
+        if (achievements.isNotEmpty) {
+          final mappedAchievements = achievements.map((achievementMap) => 
+            Achievement(
+              title: achievementMap['title'],
+              icon: Icons.star, // 使用默认图标
+              color: Colors.blue, // 使用默认颜色
+              isLocked: !achievementMap['unlocked'],
+              currentProgress: achievementMap['progress'],
+              totalGoal: achievementMap['total'],
+              description: achievementMap['description'],
+              milestones: [], // 暂时使用空列表
+            )
+          ).toList();
+          
           setState(() {
-            _achievements = achievements;
-            _currentAchievement = achievements.isNotEmpty ? achievements.first : null;
+            _achievements = mappedAchievements;
+            _currentAchievement = mappedAchievements.isNotEmpty ? mappedAchievements.first : null;
           });
         } else {
           // 如果没有成就数据，创建一些示例成就
-          _createDefaultAchievements(userId);
+          await _achievementRepository.initializeDefaultAchievements();
+          final defaultAchievements = await _achievementRepository.getAchievements();
+          
+          final mappedAchievements = defaultAchievements.map((achievementMap) => 
+            Achievement(
+              title: achievementMap['title'],
+              icon: Icons.star, // 使用默认图标
+              color: Colors.blue, // 使用默认颜色
+              isLocked: !achievementMap['unlocked'],
+              currentProgress: achievementMap['progress'],
+              totalGoal: achievementMap['total'],
+              description: achievementMap['description'],
+              milestones: [], // 暂时使用空列表
+            )
+          ).toList();
+          
+          setState(() {
+            _achievements = mappedAchievements;
+            _currentAchievement = mappedAchievements.isNotEmpty ? mappedAchievements.first : null;
+          });
         }
       } else {
         // 未登录，使用默认成就
@@ -71,41 +108,6 @@ class _AchievementScreenState extends State<AchievementScreen> {
       }
     } catch (e) {
       debugPrint('Error loading achievements: $e');
-      // 使用默认成就
-      setState(() {
-        _achievements = _manager.achievements;
-        _currentAchievement = _manager.achievements.isNotEmpty ? _manager.achievements.first : null;
-      });
-    }
-  }
-
-  // 创建默认成就
-  Future<void> _createDefaultAchievements(int userId) async {
-    try {
-      // 创建默认成就
-      for (int i = 0; i < _manager.achievements.length; i++) {
-        final achievement = _manager.achievements[i];
-        await _achievementRepository.createAchievement(
-          i + 1,
-          userId,
-          achievement.title,
-          achievement.description,
-          'icon_${i + 1}', // 示例图标名称
-          achievement.currentProgress,
-          achievement.totalGoal,
-          !achievement.isLocked,
-        );
-      }
-      
-      // 重新加载成就
-      final parseAchievements = await _achievementRepository.fetchAchievements(userId);
-      final achievements = parseAchievements.map((parseObj) => Achievement.fromParseObject(parseObj)).toList();
-      setState(() {
-        _achievements = achievements;
-        _currentAchievement = achievements.isNotEmpty ? achievements.first : null;
-      });
-    } catch (e) {
-      debugPrint('Error creating default achievements: $e');
       // 使用默认成就
       setState(() {
         _achievements = _manager.achievements;

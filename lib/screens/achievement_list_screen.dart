@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import '../theme/app_theme.dart';
 import '../models/achievement.dart';
 import '../repositories/Achievement_repository.dart';
+import '../repositories/Userinfo_respositories.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:parse_server_sdk_flutter/parse_server_sdk_flutter.dart';
 
@@ -15,18 +16,17 @@ class AchievementListScreen extends StatefulWidget {
 
 class _AchievementListScreenState extends State<AchievementListScreen> {
   final AchievementRepository _achievementRepository = AchievementRepository();
-  List<Achievement> _achievements = [];
+  final UserinfoRepository _userinfoRepository = UserinfoRepository();
+  List<Map<String, dynamic>> _achievements = [];
   bool _isLoading = true;
+  int _userId = 0;
   int _totalAchievements = 0;
   int _unlockedAchievements = 0;
   
   @override
   void initState() {
     super.initState();
-    // 使用 Future.delayed 确保 UI 已经渲染完成
-    Future.delayed(Duration.zero, () {
-      _loadAchievements();
-    });
+    _loadAchievements();
   }
   
   Future<void> _loadAchievements() async {
@@ -35,79 +35,51 @@ class _AchievementListScreenState extends State<AchievementListScreen> {
     setState(() {
       _isLoading = true;
     });
-    
+
     try {
-      // 从SharedPreferences获取当前登录的用户信息
+      // 获取当前用户ID
       final prefs = await SharedPreferences.getInstance();
       final username = prefs.getString('currentUsername') ?? '';
+      if (username.isEmpty) {
+        setState(() {
+          _isLoading = false;
+        });
+        return;
+      }
+
+      // 获取用户ID
+      _userId = username == 'test' ? 1 : (username == 'admin' ? 2 : 0);
       
-      if (username.isNotEmpty) {
-        // 获取用户ID
-        final userId = await _getUserId(username);
+      if (_userId > 0) {
+        // 获取用户统计数据
+        final stats = await _userinfoRepository.getUserStatistics(_userId);
+        final solvedProblems = stats['solvedProblems'] ?? 0;
         
-        // 使用用户ID获取成就
-        final parseAchievements = await _achievementRepository.fetchAchievements(userId);
+        // 获取并更新成就
+        await _achievementRepository.checkAndUpdateAchievements(_userId, solvedProblems);
+        final achievements = await _achievementRepository.getAchievements();
         
-        if (!mounted) return;
-        
-        if (parseAchievements.isNotEmpty) {
-          final achievements = parseAchievements.map((parseObj) => Achievement.fromParseObject(parseObj)).toList();
-          _updateAchievementStats(achievements);
+        if (mounted) {
           setState(() {
             _achievements = achievements;
             _isLoading = false;
           });
-        } else {
-          // 如果没有成就数据，使用默认成就
-          _loadDefaultAchievements();
         }
       } else {
-        // 未登录，使用默认成就
-        _loadDefaultAchievements();
+        if (mounted) {
+          setState(() {
+            _isLoading = false;
+          });
+        }
       }
     } catch (e) {
-      debugPrint('Error loading achievements: $e');
-      _loadDefaultAchievements();
-    } finally {
+      print('加载成就失败: $e');
       if (mounted) {
         setState(() {
           _isLoading = false;
         });
       }
     }
-  }
-
-  // 获取用户ID
-  Future<int> _getUserId(String username) async {
-    try {
-      final query = QueryBuilder<ParseObject>(ParseObject('Userinfo'))
-        ..whereEqualTo('u_name', username);
-      final userResponse = await query.query();
-      
-      if (userResponse.success && userResponse.results != null && userResponse.results!.isNotEmpty) {
-        final userObj = userResponse.results!.first as ParseObject;
-        return userObj.get<int>('u_id') ?? 1;
-      }
-      return 1; // 默认使用ID为1
-    } catch (e) {
-      debugPrint('Error getting user ID: $e');
-      return 1;
-    }
-  }
-
-  // 加载默认成就
-  void _loadDefaultAchievements() {
-    if (!mounted) return;
-    
-    setState(() {
-      _achievements = [];
-      _isLoading = false;
-    });
-  }
-
-  void _updateAchievementStats(List<Achievement> achievements) {
-    _totalAchievements = achievements.length;
-    _unlockedAchievements = achievements.where((a) => !a.isLocked).length;
   }
 
   @override
@@ -152,45 +124,47 @@ class _AchievementListScreenState extends State<AchievementListScreen> {
             ],
           ),
         )
-      : Stack(
-        children: [
-          Container(
-            color: const Color(0xFFFFE4D4),
-          ),
-          Column(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(20),
-                child: _buildAchievementStats(),
-              ),
-              Expanded(
-                child: Container(
-                  width: double.infinity,
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFFFF8F3),
-                    borderRadius: const BorderRadius.vertical(
-                      top: Radius.circular(30),
+      : _userId == 0
+          ? const Center(child: Text('请先登录'))
+          : _achievements.isEmpty
+              ? const Center(child: Text('暂无成就'))
+              : Stack(
+                  children: [
+                    Container(
+                      color: const Color(0xFFFFE4D4),
                     ),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withOpacity(0.05),
-                        blurRadius: 10,
-                        offset: const Offset(0, -2),
-                      ),
-                    ],
-                  ),
-                  child: SingleChildScrollView(
-                    padding: const EdgeInsets.symmetric(vertical: 30),
-                    child: _achievements.isEmpty
-                    ? _buildDefaultCategories()
-                    : _buildUserAchievements(),
-                  ),
+                    Column(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(20),
+                          child: _buildAchievementStats(),
+                        ),
+                        Expanded(
+                          child: Container(
+                            width: double.infinity,
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFFFF8F3),
+                              borderRadius: const BorderRadius.vertical(
+                                top: Radius.circular(30),
+                              ),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.black.withOpacity(0.05),
+                                  blurRadius: 10,
+                                  offset: const Offset(0, -2),
+                                ),
+                              ],
+                            ),
+                            child: SingleChildScrollView(
+                              padding: const EdgeInsets.symmetric(vertical: 30),
+                              child: _buildUserAchievements(),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
                 ),
-              ),
-            ],
-          ),
-        ],
-      ),
     );
   }
 
@@ -227,6 +201,10 @@ class _AchievementListScreenState extends State<AchievementListScreen> {
       itemCount: _achievements.length,
       itemBuilder: (context, index) {
         final achievement = _achievements[index];
+        final progress = achievement['progress'] ?? 0;
+        final total = achievement['total'] ?? 1;
+        final percent = (progress / total * 100).clamp(0, 100);
+        
         return Container(
           margin: const EdgeInsets.only(bottom: 15),
           decoration: BoxDecoration(
@@ -242,7 +220,7 @@ class _AchievementListScreenState extends State<AchievementListScreen> {
           ),
           child: Stack(
             children: [
-              if (achievement.isLocked)
+              if (achievement['unlocked'] == false)
                 Container(
                   decoration: BoxDecoration(
                     color: Colors.black.withOpacity(0.1),
@@ -257,12 +235,16 @@ class _AchievementListScreenState extends State<AchievementListScreen> {
                       width: 50,
                       height: 50,
                       decoration: BoxDecoration(
-                        color: achievement.color.withOpacity(0.1),
+                        color: achievement['color']?.withOpacity(0.1) ?? Colors.grey.withOpacity(0.1),
                         borderRadius: BorderRadius.circular(12),
                       ),
                       child: Icon(
-                        achievement.icon,
-                        color: achievement.isLocked ? Colors.grey : achievement.color,
+                        achievement['unlocked'] == true
+                            ? Icons.emoji_events
+                            : Icons.lock_outline,
+                        color: achievement['unlocked'] == true
+                            ? Colors.amber
+                            : Colors.grey,
                         size: 30,
                       ),
                     ),
@@ -272,16 +254,18 @@ class _AchievementListScreenState extends State<AchievementListScreen> {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            achievement.title,
+                            achievement['title'] ?? '',
                             style: TextStyle(
                               fontSize: 16,
                               fontWeight: FontWeight.w600,
-                              color: achievement.isLocked ? Colors.grey : Colors.black87,
+                              color: achievement['unlocked'] == true
+                                  ? Colors.black
+                                  : Colors.grey,
                             ),
                           ),
                           const SizedBox(height: 4),
                           Text(
-                            achievement.description,
+                            achievement['description'] ?? '',
                             style: TextStyle(
                               fontSize: 14,
                               color: Colors.grey[600],
@@ -291,18 +275,28 @@ class _AchievementListScreenState extends State<AchievementListScreen> {
                           ClipRRect(
                             borderRadius: BorderRadius.circular(5),
                             child: LinearProgressIndicator(
-                              value: achievement.progressPercentage,
+                              value: progress / total,
                               backgroundColor: Colors.grey[200],
                               valueColor: AlwaysStoppedAnimation<Color>(
-                                achievement.isLocked ? Colors.grey : AppColors.primary,
+                                achievement['unlocked'] == true
+                                    ? Colors.green
+                                    : Colors.blue,
                               ),
                               minHeight: 6,
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            '进度: $progress/$total (${percent.toStringAsFixed(1)}%)',
+                            style: const TextStyle(
+                              fontSize: 12,
+                              color: Colors.grey,
                             ),
                           ),
                         ],
                       ),
                     ),
-                    if (achievement.isLocked)
+                    if (achievement['unlocked'] == false)
                       const Icon(
                         Icons.lock,
                         color: Colors.grey,
@@ -315,17 +309,6 @@ class _AchievementListScreenState extends State<AchievementListScreen> {
           ),
         );
       },
-    );
-  }
-
-  Widget _buildDefaultCategories() {
-    return Column(
-      children: [
-        _buildAchievementCategory('亚洲探险', _asiaAchievements),
-        _buildAchievementCategory('欧洲探险', _europeAchievements),
-        _buildAchievementCategory('美洲探险', _americaAchievements),
-        _buildAchievementCategory('大洋洲探险', _oceaniaAchievements),
-      ],
     );
   }
 
@@ -358,238 +341,23 @@ class _AchievementListScreenState extends State<AchievementListScreen> {
     );
   }
 
-  Widget _buildAchievementCategory(String title, List<Map<String, dynamic>> achievements) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-          child: Text(
-            title,
-            style: const TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
-              color: Colors.black87,
-            ),
-          ),
-        ),
-        ListView.builder(
-          padding: EdgeInsets.zero,
-          physics: const NeverScrollableScrollPhysics(),
-          shrinkWrap: true,
-          itemCount: achievements.length,
-          itemBuilder: (context, index) {
-            final achievement = achievements[index];
-            return Container(
-              margin: const EdgeInsets.only(bottom: 15, left: 20, right: 20),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(15),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.05),
-                    blurRadius: 10,
-                    offset: const Offset(0, 2),
-                  ),
-                ],
-              ),
-              child: Stack(
-                children: [
-                  if (achievement['isLocked'] as bool)
-                    Container(
-                      decoration: BoxDecoration(
-                        color: Colors.black.withOpacity(0.1),
-                        borderRadius: BorderRadius.circular(15),
-                      ),
-                    ),
-                  Padding(
-                    padding: const EdgeInsets.all(15),
-                    child: Row(
-                      children: [
-                        Container(
-                          width: 50,
-                          height: 50,
-                          decoration: BoxDecoration(
-                            color: (achievement['color'] as Color?)?.withOpacity(0.1),
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          child: Icon(
-                            achievement['icon'] as IconData,
-                            color: achievement['isLocked'] as bool
-                                ? Colors.grey
-                                : achievement['color'] as Color?,
-                            size: 30,
-                          ),
-                        ),
-                        const SizedBox(width: 15),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                achievement['title'] as String,
-                                style: TextStyle(
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.w600,
-                                  color: achievement['isLocked'] as bool
-                                      ? Colors.grey
-                                      : Colors.black87,
-                                ),
-                              ),
-                              const SizedBox(height: 4),
-                              Text(
-                                achievement['description'] as String,
-                                style: TextStyle(
-                                  fontSize: 14,
-                                  color: Colors.grey[600],
-                                ),
-                              ),
-                              if (achievement['progress'] != null) ...[
-                                const SizedBox(height: 8),
-                                ClipRRect(
-                                  borderRadius: BorderRadius.circular(5),
-                                  child: LinearProgressIndicator(
-                                    value: achievement['progress'] as double,
-                                    backgroundColor: Colors.grey[200],
-                                    valueColor: AlwaysStoppedAnimation<Color>(
-                                      achievement['isLocked'] as bool
-                                          ? Colors.grey
-                                          : AppColors.primary,
-                                    ),
-                                    minHeight: 6,
-                                  ),
-                                ),
-                              ],
-                            ],
-                          ),
-                        ),
-                        if (achievement['isLocked'] as bool)
-                          const Icon(
-                            Icons.lock,
-                            color: Colors.grey,
-                            size: 20,
-                          ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-            );
-          },
-        ),
-      ],
-    );
+  void _updateAchievementStats(List<Map<String, dynamic>> achievements) {
+    _totalAchievements = achievements.length;
+    _unlockedAchievements = achievements.where((a) => a['unlocked'] == true).length;
   }
 
-  // 亚洲地区成就
-  static final List<Map<String, dynamic>> _asiaAchievements = [
-    {
-      'title': '长城探险家',
-      'description': '累计完成30次收藏',
-      'icon': Icons.landscape,
-      'color': Colors.blue[700],
-      'isLocked': false,
-      'progress': 0.5,
-    },
-    {
-      'title': '泰姬陵探险家',
-      'description': '连续学习7天',
-      'icon': Icons.mosque,
-      'color': Colors.pink[700],
-      'isLocked': true,
-      'progress': 0.0,
-    },
-    {
-      'title': '富士山探险家',
-      'description': '完成50道编程题',
-      'icon': Icons.terrain,
-      'color': Colors.red[700],
-      'isLocked': true,
-      'progress': 0.0,
-    },
-  ];
-
-  // 欧洲地区成就
-  static final List<Map<String, dynamic>> _europeAchievements = [
-    {
-      'title': '巴黎铁塔探险家',
-      'description': '观看100个视频教程',
-      'icon': Icons.tour,
-      'color': Colors.purple[700],
-      'isLocked': true,
-      'progress': 0.0,
-    },
-    {
-      'title': '罗马斗兽场探险家',
-      'description': '参与20次讨论',
-      'icon': Icons.account_balance,
-      'color': Colors.orange[700],
-      'isLocked': true,
-      'progress': 0.0,
-    },
-    {
-      'title': '圣家堂探险家',
-      'description': '完成10次项目实践',
-      'icon': Icons.church,
-      'color': Colors.brown[700],
-      'isLocked': true,
-      'progress': 0.0,
-    },
-  ];
-
-  // 美洲地区成就
-  static final List<Map<String, dynamic>> _americaAchievements = [
-    {
-      'title': '自由女神探险家',
-      'description': '获得100个点赞',
-      'icon': Icons.emoji_flags,
-      'color': Colors.green[700],
-      'isLocked': true,
-      'progress': 0.0,
-    },
-    {
-      'title': '大峡谷探险家',
-      'description': '完成30次笔记整理',
-      'icon': Icons.landscape,
-      'color': Colors.deepOrange[700],
-      'isLocked': true,
-      'progress': 0.0,
-    },
-    {
-      'title': '马丘比丘探险家',
-      'description': '解锁20个知识点',
-      'icon': Icons.terrain,
-      'color': Colors.teal[700],
-      'isLocked': true,
-      'progress': 0.0,
-    },
-  ];
-
-  // 大洋洲地区成就
-  static final List<Map<String, dynamic>> _oceaniaAchievements = [
-    {
-      'title': '悉尼歌剧院探险家',
-      'description': '完成5次在线考试',
-      'icon': Icons.theater_comedy,
-      'color': Colors.red[700],
-      'isLocked': true,
-      'progress': 0.0,
-    },
-    {
-      'title': '大堡礁探险家',
-      'description': '收藏50个学习资源',
-      'icon': Icons.waves,
-      'color': Colors.blue[700],
-      'isLocked': true,
-      'progress': 0.0,
-    },
-    {
-      'title': '艾尔斯岩探险家',
-      'description': '完成15次小组学习',
-      'icon': Icons.landscape,
-      'color': Colors.amber[700],
-      'isLocked': true,
-      'progress': 0.0,
-    },
-  ];
+  Color _getTypeColor(String? type) {
+    switch (type) {
+      case '入门':
+        return Colors.green;
+      case '进阶':
+        return Colors.blue;
+      case '专业':
+        return Colors.purple;
+      case '高级':
+        return Colors.red;
+      default:
+        return Colors.grey;
+    }
+  }
 } 

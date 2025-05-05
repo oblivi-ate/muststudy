@@ -7,6 +7,7 @@ import '../repositories/Question_respositories.dart';
 import '../repositories/Q_tag_respositories.dart';
 import '../repositories/Userinfo_respositories.dart';
 import '../repositories/Answer_respositories.dart';
+import 'dart:convert';
 
 class ProblemDetails extends StatefulWidget {
   final ParseObject problem;
@@ -40,8 +41,15 @@ class _ProblemDetailsState extends State<ProblemDetails> {
   @override
   void initState() {
     super.initState();
-    _loadQuestionDetails();
-    _loadCurrentUser();
+    _initializeData();
+  }
+
+  Future<void> _initializeData() async {
+    await _loadCurrentUser();  // 先加载用户信息
+    if (mounted) {
+      await _checkIfSolved();  // 然后检查题目状态
+      await _loadQuestionDetails();  // 最后加载评论
+    }
   }
   
   // 加载当前用户信息
@@ -50,52 +58,76 @@ class _ProblemDetailsState extends State<ProblemDetails> {
       print('开始加载用户信息...');
       final prefs = await SharedPreferences.getInstance();
       final username = prefs.getString('currentUsername') ?? '';
+      final cachedUserId = prefs.getInt('current_user_id');
       
       print('当前登录用户名: $username');
       if (username.isEmpty) {
         print('没有找到登录用户');
+        setState(() {
+          _userId = 0;
+          _username = '';
+        });
         return;
       }
+
+      // 如果有缓存的用户ID，先使用缓存
+      if (cachedUserId != null) {
+        setState(() {
+          _userId = cachedUserId;
+          _username = username;
+        });
+      }
       
-      setState(() {
-        _username = username;
-      });
-      
+      // 尝试从服务器获取最新用户信息
       final query = QueryBuilder<ParseObject>(ParseObject('Userinfo'))
         ..whereEqualTo('u_name', username);
-      final response = await query.query();
       
-      if (response.success && response.results != null && response.results!.isNotEmpty) {
-        final userObj = response.results!.first as ParseObject;
-        final userId = userObj.get<int>('u_id') ?? 0;
+      // 设置超时
+      final timeout = Future.delayed(const Duration(milliseconds: 300));
+      
+      try {
+        final response = await Future.any([
+          query.query(),
+          timeout
+        ]);
         
-        print('成功获取用户ID: $userId');
-        setState(() {
-          _userId = userId;
-        });
-        
-        // 检查问题是否已被收藏
-        if (_userId > 0) {
-          final questionId = widget.problem.get<int>('q_id') ?? 0;
-          final isBookmarked = await _userinfoRepository.isQuestionBookmarked(_userId, questionId);
+        if (response != null && response.success && response.results != null && response.results!.isNotEmpty) {
+          final userObj = response.results!.first as ParseObject;
+          final userId = userObj.get<int>('u_id') ?? 0;
           
-          setState(() {
-            _isBookmarked = isBookmarked;
-          });
+          print('成功获取用户ID: $userId');
           
-          // 检查问题是否已完成
-          await _checkIfSolved();
-        } else {
-          print('获取到的用户ID为0或无效');
+          // 更新缓存
+          await prefs.setInt('current_user_id', userId);
+          
+          if (mounted) {
+            setState(() {
+              _userId = userId;
+              _username = username;
+            });
+          }
+        } else if (username == 'test' || username == 'admin') {
+          print('使用默认测试用户ID: 1');
+          await prefs.setInt('current_user_id', 1);
+          if (mounted) {
+            setState(() {
+              _userId = 1;
+              _username = username;
+            });
+          }
         }
-      } else {
-        print('未找到用户信息: ${response.error?.message ?? "无错误信息"}');
-        // 如果没有找到用户信息，尝试使用测试用户（假设ID为1）
+      } catch (e) {
+        print('获取用户信息超时或失败: $e');
+        // 如果是测试用户，使用默认ID
         if (username == 'test' || username == 'admin') {
           print('使用默认测试用户ID: 1');
-          setState(() {
-            _userId = 1;
-          });
+          await prefs.setInt('current_user_id', 1);
+          if (mounted) {
+            setState(() {
+              _userId = 1;
+              _username = username;
+            });
+          }
         }
       }
     } catch (e) {
@@ -106,57 +138,83 @@ class _ProblemDetailsState extends State<ProblemDetails> {
   // 检查问题是否已被解决
   Future<void> _checkIfSolved() async {
     try {
-      // 为简化，我们可以检查用户是否对该问题有回答，或者有特定的"已解决"标记
-      // 这里使用一个简化的逻辑，根据UserStatistics中的已解题目列表来判断
       if (_userId > 0) {
-        final stats = await _userinfoRepository.getUserStatistics(_userId);
-        final solvedCount = stats['solvedProblems'] ?? 0;
-        
-        // 获取回答
         final questionId = widget.problem.get<int>('q_id') ?? 0;
-        final userAnswers = await _answerRepository.getAnswersByUserId(_userId);
         
-        // 如果用户对该问题有回答，我们假设他已经解决了这个问题
-        setState(() {
-          _isSolved = userAnswers.any((answer) => 
-            answer.get<int>('question_id') == questionId
-          );
-        });
+        // 从本地缓存获取已完成的题目列表
+        final prefs = await SharedPreferences.getInstance();
+        final solvedProblemsJson = prefs.getString('solved_problems_${_userId}');
+        
+        if (solvedProblemsJson != null) {
+          final solvedProblems = List<int>.from(json.decode(solvedProblemsJson));
+          setState(() {
+            _isSolved = solvedProblems.contains(questionId);
+          });
+        } else {
+          setState(() {
+            _isSolved = false;
+          });
+        }
       }
     } catch (e) {
       print('Error checking if solved: $e');
+      setState(() {
+        _isSolved = false;
+      });
     }
   }
 
   Future<void> _loadQuestionDetails() async {
+    if (!mounted) return;
+    
+    setState(() {
+      _isLoadingAnswers = true;
+    });
+    
     try {
-      setState(() {
-        _isLoadingAnswers = true;
-      });
+      final questionId = widget.problem.get<int>('q_id') ?? 0;
       
-      // 加载问题详情
-      final questionDetails = widget.problem;
-      final questionId = questionDetails.get<int>('q_id') ?? 0;
-
-      // 加载问题标签
-      final tags = await _qtagRepository.fetchQtag();
-      if (tags != null) {
-        final questionTags = tags.where((tag) => 
-          tag.get<int>('q_id') == questionId
-        ).toList();
+      // 先尝试从缓存加载数据
+      final cachedAnswers = await _answerRepository.getAnswersByQuestionId(questionId);
+      
+      if (!mounted) return;
+      
+      // 如果有缓存数据，立即显示
+      if (cachedAnswers.isNotEmpty) {
+        setState(() {
+          _answers = cachedAnswers;
+          _isLoadingAnswers = false;
+        });
       }
       
-      // 加载问题的回答
-      final answers = await _answerRepository.getAnswersByQuestionId(questionId);
-      setState(() {
-        _answers = answers;
-        _isLoadingAnswers = false;
-      });
+      // 尝试从服务器加载最新数据
+      final timeout = Future.delayed(const Duration(milliseconds: 300));
+      
+      try {
+        final answers = await Future.any([
+          _answerRepository.fetchLatestAnswers(questionId),  // 新方法，专门用于获取最新数据
+          timeout,
+        ]);
+        
+        if (!mounted) return;
+        
+        // 只有当获取到的新数据不为空时才更新
+        if (answers != null && answers.isNotEmpty) {
+          setState(() {
+            _answers = answers;
+          });
+        }
+      } catch (e) {
+        print('加载最新评论超时或失败: $e');
+      }
     } catch (e) {
-      print('Error loading question details: $e');
-      setState(() {
-        _isLoadingAnswers = false;
-      });
+      print('加载评论失败: $e');
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoadingAnswers = false;
+        });
+      }
     }
   }
   
@@ -235,32 +293,44 @@ class _ProblemDetailsState extends State<ProblemDetails> {
     
     try {
       final questionId = widget.problem.get<int>('q_id') ?? 0;
-      
-      // 更新问题的提交次数
-      await _questionRepository.incrementSubmissionCount(questionId);
-      
-      // 更新问题的成功次数
-      await _questionRepository.incrementSuccessCount(questionId);
-      
-      // 更新用户已解题目数量
-      await _userinfoRepository.updateSolvedProblems(_userId);
-      
-      // 添加一个简单的回答，表示用户已完成此题
       final timestamp = DateTime.now().millisecondsSinceEpoch;
+      
+      // 添加一个回答，标记为已完成
       await _answerRepository.createAnswer(
         timestamp, 
         "我已经完成了这道题目！", 
         _userId, 
         0, 
-        questionId
+        questionId,
+        isSolved: true
       );
+      
+      // 更新本地缓存的已完成题目列表
+      final prefs = await SharedPreferences.getInstance();
+      final solvedProblemsJson = prefs.getString('solved_problems_${_userId}');
+      final solvedProblems = solvedProblemsJson != null 
+          ? List<int>.from(json.decode(solvedProblemsJson))
+          : <int>[];
+      
+      if (!solvedProblems.contains(questionId)) {
+        solvedProblems.add(questionId);
+        await prefs.setString('solved_problems_${_userId}', json.encode(solvedProblems));
+        
+        // 更新用户统计数据
+        await _userinfoRepository.updateSolvedProblems(_userId);
+      }
       
       setState(() {
         _isSolved = true;
       });
       
       // 重新加载答案
-      _loadQuestionDetails();
+      final updatedAnswers = await _answerRepository.getAnswersByQuestionId(questionId);
+      if (mounted) {
+        setState(() {
+          _answers = updatedAnswers;
+        });
+      }
       
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('恭喜你完成了这道题目！')),
@@ -503,78 +573,88 @@ class _ProblemDetailsState extends State<ProblemDetails> {
           ),
         ),
         const SizedBox(height: 16),
-        _isLoadingAnswers
-            ? const Center(child: CircularProgressIndicator())
-            : _answers.isEmpty
-                ? const Center(
-                    child: Text(
-                      "暂无讨论",
-                      style: TextStyle(
-                        color: Colors.grey,
-                        fontSize: 16,
-                      ),
-                    ),
-                  )
-                : ListView.builder(
-                    shrinkWrap: true,
-                    physics: const NeverScrollableScrollPhysics(),
-                    itemCount: _answers.length,
-                    itemBuilder: (context, index) {
-                      final answer = _answers[index];
-                      final content = answer.get<String>('ainfo') ?? '';
-                      final userId = answer.get<int>('uid') ?? 0;
-                      final likeCount = answer.get<int>('alike') ?? 0;
-                      final answerId = answer.get<int>('a_id') ?? 0;
-                      
-                      return Card(
-                        margin: const EdgeInsets.only(bottom: 12),
-                        child: Padding(
-                          padding: const EdgeInsets.all(12),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
+        if (_isLoadingAnswers && _answers.isEmpty)
+          const Center(child: CircularProgressIndicator())
+        else if (_answers.isEmpty)
+          const Center(
+            child: Text(
+              "暂无讨论",
+              style: TextStyle(
+                color: Colors.grey,
+                fontSize: 16,
+              ),
+            ),
+          )
+        else
+          ListView.builder(
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            itemCount: _answers.length,
+            itemBuilder: (context, index) {
+              final answer = _answers[index];
+              final content = answer.get<String>('ainfo') ?? '';
+              final userId = answer.get<int>('uid') ?? 0;
+              final likeCount = answer.get<int>('alike') ?? 0;
+              final answerId = answer.get<int>('a_id') ?? 0;
+              
+              return Card(
+                margin: const EdgeInsets.only(bottom: 12),
+                child: Padding(
+                  padding: const EdgeInsets.all(12),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      FutureBuilder<String>(
+                        future: _userinfoRepository.getUserName(userId),
+                        builder: (context, snapshot) {
+                          return Row(
                             children: [
-                              FutureBuilder<String>(
-                                future: _userinfoRepository.getUserName(userId),
-                                builder: (context, snapshot) {
-                                  return Row(
-                                    children: [
-                                      const CircleAvatar(
-                                        backgroundColor: Colors.blue,
-                                        child: Icon(Icons.person, color: Colors.white),
-                                      ),
-                                      const SizedBox(width: 8),
-                                      Text(
-                                        snapshot.data ?? '匿名用户',
-                                        style: const TextStyle(
-                                          fontWeight: FontWeight.bold,
-                                        ),
-                                      ),
-                                      const Spacer(),
-                                      GestureDetector(
-                                        onTap: () => _likeAnswer(answerId),
-                                        child: Row(
-                                          children: [
-                                            Icon(Icons.thumb_up, size: 16, color: Colors.grey[600]),
-                                            const SizedBox(width: 4),
-                                            Text('$likeCount', style: TextStyle(color: Colors.grey[600])),
-                                          ],
-                                        ),
-                                      ),
-                                    ],
-                                  );
-                                },
+                              const CircleAvatar(
+                                backgroundColor: Colors.blue,
+                                child: Icon(Icons.person, color: Colors.white),
                               ),
-                              const SizedBox(height: 8),
+                              const SizedBox(width: 8),
                               Text(
-                                content,
-                                style: const TextStyle(fontSize: 16),
+                                snapshot.data ?? '匿名用户',
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                ),
                               ),
+                              const Spacer(),
+                              if (_isLoadingAnswers)
+                                const SizedBox(
+                                  width: 16,
+                                  height: 16,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                  ),
+                                )
+                              else
+                                GestureDetector(
+                                  onTap: () => _likeAnswer(answerId),
+                                  child: Row(
+                                    children: [
+                                      Icon(Icons.thumb_up, size: 16, color: Colors.grey[600]),
+                                      const SizedBox(width: 4),
+                                      Text('$likeCount', style: TextStyle(color: Colors.grey[600])),
+                                    ],
+                                  ),
+                                ),
                             ],
-                          ),
-                        ),
-                      );
-                    },
+                          );
+                        },
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        content,
+                        style: const TextStyle(fontSize: 16),
+                      ),
+                    ],
                   ),
+                ),
+              );
+            },
+          ),
       ],
     );
   }

@@ -6,6 +6,8 @@ import '../theme/app_theme.dart';
 import '../repositories/Userinfo_respositories.dart';
 import '../routes/app_router.dart';
 import 'dart:convert';
+import '../services/pomodoro_service.dart';
+import './pomodoro_timer_screen.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({Key? key}) : super(key: key);
@@ -16,6 +18,7 @@ class ProfileScreen extends StatefulWidget {
 
 class _ProfileScreenState extends State<ProfileScreen> {
   final UserinfoRepository _userinfoRepository = UserinfoRepository();
+  final PomodoroService _pomodoroService = PomodoroService();
   bool _isLoading = true;
   String _username = '未登录';
   String _level = 'Lv.1 初学者';
@@ -116,13 +119,19 @@ class _ProfileScreenState extends State<ProfileScreen> {
       final username = prefs.getString('currentUsername') ?? '';
       
       if (username.isNotEmpty) {
+        // 设置0.3秒超时
+        final timeout = Future.delayed(const Duration(milliseconds: 300));
+        
         // 并行加载用户信息和统计数据
-        await Future.wait([
+        final loadData = Future.wait([
           _loadUserInfo(username),
           _loadUserStatistics(_userId),
         ]);
         
-        // 保存到缓存
+        // 等待加载完成或超时
+        await Future.any([loadData, timeout]);
+        
+        // 如果加载成功，保存到缓存
         _cacheUserData();
       } else {
         print('未登录或无用户信息');
@@ -143,11 +152,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
   // 加载用户信息
   Future<void> _loadUserInfo(String username) async {
     try {
+      // 设置超时
+      final timeout = Future.delayed(const Duration(milliseconds: 300));
+      
       final query = QueryBuilder<ParseObject>(ParseObject('Userinfo'))
         ..whereEqualTo('u_name', username);
-      final response = await query.query();
+      final response = await Future.any([query.query(), timeout]);
       
-      if (response.success && response.results != null && response.results!.isNotEmpty) {
+      if (response is ParseResponse && response.success && response.results != null && response.results!.isNotEmpty) {
         final userObj = response.results!.first as ParseObject;
         
         if (!mounted) return;
@@ -156,7 +168,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
           _userId = userObj.get<int>('u_id') ?? 0;
         });
       } else {
-        print('未找到用户信息');
+        print('未找到用户信息或请求超时');
         _loadTestUserData();
       }
     } catch (e) {
@@ -168,14 +180,25 @@ class _ProfileScreenState extends State<ProfileScreen> {
   // 加载用户统计数据
   Future<void> _loadUserStatistics(int userId) async {
     try {
-      // 从后端获取用户的学习统计数据
-      final userStats = await _userinfoRepository.getUserStatistics(userId);
+      // 设置超时
+      final timeout = Future.delayed(const Duration(milliseconds: 300));
       
-      if (!mounted) return;
-      setState(() {
-        _statistics = userStats;
-        _level = _userinfoRepository.getUserLevel(userStats['solvedProblems']);
-      });
+      // 从后端获取用户的学习统计数据
+      final userStats = await Future.any([
+        _userinfoRepository.getUserStatistics(userId),
+        timeout,
+      ]);
+      
+      if (userStats is Map<String, dynamic>) {
+        if (!mounted) return;
+        setState(() {
+          _statistics = userStats;
+          _level = _userinfoRepository.getUserLevel(userStats['solvedProblems']);
+        });
+      } else {
+        print('获取统计数据超时');
+        _loadTestUserData();
+      }
     } catch (e) {
       print('加载用户统计数据失败: $e');
       // 使用模拟数据作为备选
@@ -398,7 +421,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
             children: [
               _buildStatisticsItem(
                 icon: Icons.timer,
-                value: _statistics['studyHours'].toString(),
+                value: _statistics['studyHours'].toStringAsFixed(2),
                 label: '学习时长(h)',
                 color: Colors.blue[700]!,
               ),
@@ -485,12 +508,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
       child: Column(
         children: [
           _buildFunctionItem(
-            icon: Icons.trending_up,
-            title: '模拟学习',
+            icon: Icons.timer,
+            title: '番茄钟',
             onTap: () {
-              // 模拟增加学习时长
+              // 启动番茄钟
               if (_userId > 0) {
-                _simulateStudy();
+                _startPomodoroTimer();
               } else {
                 ScaffoldMessenger.of(context).showSnackBar(
                   const SnackBar(content: Text('请先登录')),
@@ -616,8 +639,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
-  // 模拟学习功能
-  Future<void> _simulateStudy() async {
+  // 番茄钟功能
+  Future<void> _startPomodoroTimer() async {
     int selectedHours = 0;
     int selectedMinutes = 0;
 
@@ -633,18 +656,18 @@ class _ProfileScreenState extends State<ProfileScreen> {
             Container(
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: Colors.blue[100],
+                color: Colors.red[100],
                 shape: BoxShape.circle,
               ),
               child: Icon(
                 Icons.timer_outlined,
-                color: Colors.blue[700],
+                color: Colors.red[700],
                 size: 28,
               ),
             ),
             const SizedBox(height: 12),
             const Text(
-              '选择要增加的学习时长',
+              '设置番茄钟时长',
               style: TextStyle(
                 fontSize: 18,
                 fontWeight: FontWeight.w600,
@@ -701,7 +724,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                 index.toString(),
                                 style: TextStyle(
                                   fontSize: 16,
-                                  color: Colors.blue[700],
+                                  color: Colors.red[700],
                                   fontWeight: FontWeight.w500,
                                 ),
                               ),
@@ -741,17 +764,24 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         magnification: 1.2,
                         physics: const FixedExtentScrollPhysics(),
                         onSelectedItemChanged: (index) {
-                          selectedMinutes = index * 5;
+                          if (index == 0) {
+                            selectedMinutes = 0; // 10秒
+                            selectedHours = 0;
+                          } else {
+                            selectedMinutes = index * 5;
+                            selectedHours = 0;
+                          }
                         },
                         childDelegate: ListWheelChildBuilderDelegate(
                           builder: (context, index) {
+                            final minutes = index * 5;
                             return Container(
                               alignment: Alignment.center,
                               child: Text(
-                                (index * 5).toString(),
+                                minutes == 0 ? '10秒' : '$minutes分钟',
                                 style: TextStyle(
                                   fontSize: 16,
-                                  color: Colors.blue[700],
+                                  color: Colors.red[700],
                                   fontWeight: FontWeight.w500,
                                 ),
                               ),
@@ -782,7 +812,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 ),
               ),
               ElevatedButton(
-                onPressed: () async {
+                onPressed: () {
                   Navigator.pop(context);
                   
                   if (selectedHours == 0 && selectedMinutes == 0) {
@@ -792,73 +822,30 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     return;
                   }
 
-                  // 显示加载中
-                  setState(() {
-                    _isLoading = true;
-                  });
-
-                  try {
-                    // 将分钟转换为小时（保留一位小数）
-                    final hours = selectedHours + (selectedMinutes / 60);
-                    
-                    // 更新学习时长
-                    final success = await _userinfoRepository.updateStudyHours(_userId, hours);
-
-                    if (success) {
-                      // 刷新数据
-                      await _loadUserStatistics(_userId);
-
-                      if (mounted) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                            content: Row(
-                              children: [
-                                const Icon(Icons.check_circle, color: Colors.white),
-                                const SizedBox(width: 8),
-                                Text('成功增加 $selectedHours 小时 $selectedMinutes 分钟学习时长'),
-                              ],
-                            ),
-                            backgroundColor: Colors.green,
-                          ),
-                        );
-                      }
-                    } else {
-                      if (mounted) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content: Text('增加学习时长失败'),
-                            backgroundColor: Colors.red,
-                          ),
-                        );
-                      }
-                    }
-                  } catch (e) {
-                    print('增加学习时长失败: $e');
-                    if (mounted) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text('增加学习时长失败'),
-                          backgroundColor: Colors.red,
-                        ),
-                      );
-                    }
-                  } finally {
-                    if (mounted) {
-                      setState(() {
-                        _isLoading = false;
-                      });
-                    }
-                  }
+                  // 启动番茄钟
+                  _pomodoroService.startPomodoro(selectedHours, selectedMinutes, _userId);
+                  
+                  // 跳转到番茄钟页面
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => PomodoroTimerScreen(
+                        hours: selectedHours,
+                        minutes: selectedMinutes,
+                        userId: _userId,
+                      ),
+                    ),
+                  );
                 },
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.blue[700],
+                  backgroundColor: Colors.red[700],
                   padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(8),
                   ),
                 ),
                 child: const Text(
-                  '确定',
+                  '开始',
                   style: TextStyle(
                     fontSize: 16,
                     color: Colors.white,
