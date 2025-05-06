@@ -1,5 +1,6 @@
 import 'package:parse_server_sdk_flutter/parse_server_sdk_flutter.dart';
 import 'dart:convert';
+import 'dart:async';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class QuestionRepository {
@@ -14,6 +15,15 @@ class QuestionRepository {
       int likeCount, String description, String difficulty, List<String> tags, String college) async {
     try {
       print('QuestionRepository: 开始创建问题，ID: $qid, 用户ID: $userId');
+      // 检查并打印学院名称，确保编码正确
+      print('学院名称: $college, 长度: ${college.length}, 编码: ${college.codeUnits}');
+      
+      // 处理标签格式，确保没有#前缀
+      final List<String> processedTags = tags.map((tag) {
+        return tag.startsWith('#') ? tag.substring(1) : tag;
+      }).toList();
+      
+      // 创建问题对象 - 使用英文字段名避免编码问题
       final question = ParseObject('Question')
         ..set('q_id', qid)
         ..set('q_person_id', userId)
@@ -21,17 +31,37 @@ class QuestionRepository {
         ..set('q_information', content)
         ..set('q_like', likeCount)
         ..set('q_description', description)
-        ..set('q_difficulty', difficulty)
-        ..set('q_tags', tags)
-        ..set('q_college', college)
-        ..set('q_submission_count', 0)
-        ..set('q_success_count', 0);
+        ..set('q_difficulty', "中等") // 固定使用中文字符串
+        ..set('q_tags', processedTags)
+        ..set('q_college', college);
       
-      print('QuestionRepository: 准备保存问题对象');
+      // 设置其他字段 - 显式设置提交计数和成功计数
+      question.set('q_submission_count', 0);
+      question.set('q_success_count', 0);
+      
+      print('QuestionRepository: 准备保存问题对象, 字段: ${question.toJson()}');
       final response = await question.save();
       
       if (response.success) {
         print('QuestionRepository: 问题创建成功: ${response.results?.first.objectId}');
+        
+        // 验证一下实际保存的字段是否正确
+        if (response.results != null && response.results!.isNotEmpty) {
+          final savedObj = response.results!.first as ParseObject;
+          print('实际保存的对象: ${savedObj.toJson()}');
+        }
+        
+        // 保存成功后也同步保存到本地缓存
+        await saveQuestionLocally(
+          qid, 
+          userId, 
+          title, 
+          content, 
+          description, 
+          difficulty, 
+          processedTags,
+          college
+        );
       } else {
         print('QuestionRepository: 问题创建失败: ${response.error?.message}');
         throw Exception('Failed to create question: ${response.error?.message}');
@@ -98,7 +128,11 @@ class QuestionRepository {
       }
       
       final questions = List<Map<String, dynamic>>.from(json.decode(data));
-      return _convertToParseObjects(questions, orderBy);
+      final result = _convertToParseObjects(questions, orderBy);
+      
+      // 确保始终返回所有题目
+      print('从本地加载了 ${result.length} 个题目');
+      return result;
     } catch (e) {
       print('获取题目失败: $e');
       return [];
@@ -150,7 +184,16 @@ class QuestionRepository {
       
       final filteredQuestions = allQuestions.where((q) {
         final qCollege = q.get<String>('q_college') ?? '';
-        final qTags = q.get<List>('q_tags') ?? [];
+        final qTagsValue = q.get('q_tags');
+        List<String> qTags = [];
+        
+        // 处理标签，支持不同的格式
+        if (qTagsValue is List) {
+          qTags = qTagsValue.map((t) => t.toString()).toList();
+        } else if (qTagsValue is String) {
+          qTags = qTagsValue.split(',').map((t) => t.trim()).toList();
+        }
+        
         final qTitle = q.get<String>('q_title') ?? '';
         final qDescription = q.get<String>('q_description') ?? '';
         final qInformation = q.get<String>('q_information') ?? '';
@@ -159,15 +202,29 @@ class QuestionRepository {
         print('问题标签: $qTags');
         
         // 检查学院筛选
-        if (college != null && qCollege != college) {
+        if (college != null && college != '全部' && qCollege != college) {
           print('学院不匹配: $qCollege != $college');
           return false;
         }
         
         // 检查标签筛选
-        if (tag != null && !(qTags is List && qTags.contains(tag))) {
-          print('标签不匹配: $qTags 不包含 $tag');
-          return false;
+        if (tag != null && tag != '全部') {
+          // 移除#前缀后再比较
+          final processedTag = tag.startsWith('#') ? tag.substring(1) : tag;
+          
+          bool hasMatchingTag = false;
+          for (var t in qTags) {
+            final processedT = t.startsWith('#') ? t.substring(1) : t;
+            if (processedT.toLowerCase() == processedTag.toLowerCase()) {
+              hasMatchingTag = true;
+              break;
+            }
+          }
+          
+          if (!hasMatchingTag) {
+            print('标签不匹配: $qTags 不包含 $tag');
+            return false;
+          }
         }
         
         // 检查搜索关键词
@@ -795,6 +852,118 @@ LRU缓存实现要点：
     } catch (e) {
       print('检查题目完成状态失败: $e');
       return false;
+    }
+  }
+
+  // 直接保存问题到本地（用于备份或在服务器不可用时）
+  Future<void> saveQuestionLocally(int qid, int userId, String title, String content,
+      String description, String difficulty, List<String> tags, String college) async {
+    try {
+      print('开始本地保存问题, ID: $qid');
+      print('标题: $title');
+      print('原始标签列表: $tags, 类型: ${tags.runtimeType}');
+      
+      final prefs = await SharedPreferences.getInstance();
+      
+      // 获取当前本地数据
+      final data = prefs.getString(_questionsCache) ?? '[]';
+      final questions = List<Map<String, dynamic>>.from(json.decode(data));
+      print('从本地获取到 ${questions.length} 个已有问题');
+      
+      // 确保标签列表是有效的 - 使用显式类型转换
+      final List<String> validTags = <String>[];
+      if (tags.isNotEmpty) {
+        // 显式地将每个标签转换为字符串并添加到新列表
+        for (int i = 0; i < tags.length; i++) {
+          final String tag = tags[i].toString();
+          if (tag.isNotEmpty) {
+            validTags.add(tag);
+            print('添加有效标签[$i]: $tag (${tag.runtimeType})');
+      }
+        }
+        
+        // 如果标签被过滤后为空，使用默认标签
+      if (validTags.isEmpty) {
+          validTags.add('默认标签');
+          print('过滤后标签为空，使用默认标签');
+        }
+      } else {
+        validTags.add('默认标签');
+        print('标签为空，使用默认标签');
+      }
+      
+      print('最终有效标签列表: $validTags');
+      
+      // 检查纯数字标签问题
+      for (int i = 0; i < validTags.length; i++) {
+        print('保存前检查 - 标签[$i]: "${validTags[i]}", 类型: ${validTags[i].runtimeType}');
+      }
+      
+      // 检查是否已存在相同ID的问题
+      final existingIndex = questions.indexWhere((q) => q['q_id'] == qid);
+      
+      final newQuestion = {
+        'q_id': qid,
+        'q_person_id': userId,
+        'q_title': title,
+        'q_information': content,
+        'q_like': 0,
+        'q_description': description,
+        'q_difficulty': difficulty,
+        'q_tags': List<String>.from(validTags), // 确保是字符串列表
+        'q_college': college,
+        'q_submission_count': 0,
+        'q_success_count': 0,
+        'created_at': DateTime.now().toIso8601String(),
+      };
+      
+      if (existingIndex >= 0) {
+        // 更新现有问题
+        questions[existingIndex] = newQuestion;
+        print('更新现有问题，ID: $qid');
+      } else {
+        // 添加新问题
+        questions.add(newQuestion);
+        print('添加新问题，ID: $qid');
+      }
+      
+      // 保存回本地
+      final jsonData = json.encode(questions);
+      await prefs.setString(_questionsCache, jsonData);
+      print('问题成功保存到本地存储，共 ${questions.length} 个问题');
+      
+      // 验证保存是否成功
+      final savedData = prefs.getString(_questionsCache);
+      if (savedData != null) {
+        final savedQuestions = List<Map<String, dynamic>>.from(json.decode(savedData));
+        final savedQuestion = savedQuestions.firstWhere(
+          (q) => q['q_id'] == qid,
+          orElse: () => <String, dynamic>{},
+        );
+        
+        if (savedQuestion.isNotEmpty) {
+          print('验证保存成功，问题ID: ${savedQuestion['q_id']}');
+          print('保存的标签: ${savedQuestion['q_tags']}');
+          
+          // 检查保存后的标签类型
+          if (savedQuestion['q_tags'] is List) {
+            final List<dynamic> savedTags = savedQuestion['q_tags'] as List<dynamic>;
+            print('保存后标签数量: ${savedTags.length}');
+            for (int i = 0; i < savedTags.length; i++) {
+              final tag = savedTags[i];
+              print('保存后检查 - 标签[$i]: "$tag", 类型: ${tag.runtimeType}');
+            }
+          } else {
+            print('警告：保存后标签不是列表类型: ${savedQuestion['q_tags'].runtimeType}');
+          }
+        } else {
+          print('警告：无法在保存后找到问题');
+        }
+      }
+    } catch (e) {
+      print('本地保存问题失败: $e');
+      print('错误堆栈: ${StackTrace.current}');
+      throw Exception('本地保存问题异常: $e');
     }
   }
 }

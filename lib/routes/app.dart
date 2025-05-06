@@ -36,15 +36,15 @@ class App extends StatelessWidget {
         ChangeNotifierProvider<PomodoroService>.value(value: pomodoroService),
       ],
       child: MaterialApp(
-        title: 'Must Study',
-        theme: ThemeData(
-          primarySwatch: Colors.blue,
-          scaffoldBackgroundColor: Colors.white,
-        ),
-        navigatorKey: navigationService.navigatorKey,
-        initialRoute: AppRouter.initialRoute,
-        onGenerateRoute: AppRouter.generateRoute,
-        debugShowCheckedModeBanner: false,
+      title: 'Must Study',
+      theme: ThemeData(
+        primarySwatch: Colors.blue,
+        scaffoldBackgroundColor: Colors.white,
+      ),
+      navigatorKey: navigationService.navigatorKey,
+      initialRoute: AppRouter.initialRoute,
+      onGenerateRoute: AppRouter.generateRoute,
+      debugShowCheckedModeBanner: false,
       ),
     );
   }

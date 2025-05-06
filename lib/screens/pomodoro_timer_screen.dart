@@ -34,7 +34,11 @@ class _PomodoroTimerScreenState extends State<PomodoroTimerScreen> with WidgetsB
     
     // 启动番茄钟(如果未启动)
     if (!_pomodoroService.isActive) {
+      if (widget.hours == 0 && widget.minutes == 0) {
+        print("启动30秒番茄钟模式");
+      } else {
       print("启动番茄钟: ${widget.hours}小时 ${widget.minutes}分钟");
+      }
       _pomodoroService.startPomodoro(widget.hours, widget.minutes, widget.userId);
     } else {
       print("番茄钟已启动,剩余时间: ${_pomodoroService.remainingSeconds}秒");
@@ -53,8 +57,26 @@ class _PomodoroTimerScreenState extends State<PomodoroTimerScreen> with WidgetsB
 
   void _updateTimer() {
     if (mounted) {
-      setState(() {});
+      setState(() {
+        // 检查番茄钟是否刚刚完成
+        if (_pomodoroService.remainingSeconds == 0 && !_hasRecordedCompletion) {
+          _recordCompletion();
+        }
+      });
     }
+  }
+
+  // 添加标志变量，避免重复记录
+  bool _hasRecordedCompletion = false;
+  
+  // 记录番茄钟完成并更新学习时长
+  void _recordCompletion() {
+    if (_hasRecordedCompletion) return;
+    
+    _hasRecordedCompletion = true;
+    
+    // 这里不需要做什么，因为服务已经会自动调用更新学习时长
+    print("番茄钟界面检测到计时完成，学习时长已经由服务更新");
   }
 
   @override
@@ -390,13 +412,25 @@ class _PomodoroTimerScreenState extends State<PomodoroTimerScreen> with WidgetsB
                   final studyHours = (_pomodoroService.totalSeconds - _pomodoroService.remainingSeconds) / 3600;
                   
                   // 更新学习时长
-                  _userinfoRepository.updateStudyHours(widget.userId, studyHours);
+                  _userinfoRepository.updateStudyHours(widget.userId, studyHours).then((success) {
+                    if (success) {
+                      print('成功保存学习时长: $studyHours 小时');
+                    } else {
+                      print('警告: 学习时长可能未成功保存');
+                    }
                   
                   // 停止番茄钟服务
                   _pomodoroService.stopPomodoro();
                   
                   Navigator.pop(context); // 关闭对话框
                   Navigator.pop(context); // 返回上一页
+                  }).catchError((error) {
+                    print('保存学习时长时出错: $error');
+                    // 仍然停止番茄钟并返回
+                    _pomodoroService.stopPomodoro();
+                    Navigator.pop(context);
+                    Navigator.pop(context);
+                  });
                 },
                 style: ElevatedButton.styleFrom(
                   backgroundColor: Colors.red[700],
@@ -481,7 +515,8 @@ class _PomodoroTimerScreenState extends State<PomodoroTimerScreen> with WidgetsB
           ElevatedButton(
             onPressed: () {
               if (selectedHours == 0 && selectedMinutes == 0) {
-                // 如果选择了10秒
+                // 如果选择了30秒模式
+                print("选择了30秒模式");
                 selectedMinutes = 0;
                 selectedHours = 0;
               }

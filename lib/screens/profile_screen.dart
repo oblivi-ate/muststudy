@@ -765,11 +765,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         physics: const FixedExtentScrollPhysics(),
                         onSelectedItemChanged: (index) {
                           if (index == 0) {
-                            selectedMinutes = 0; // 10秒
+                            selectedMinutes = 0; // 30秒模式
                             selectedHours = 0;
+                            print('已选择30秒模式: 小时=$selectedHours, 分钟=$selectedMinutes');
                           } else {
-                            selectedMinutes = index * 5;
+                          selectedMinutes = index * 5;
                             selectedHours = 0;
+                            print('已选择${selectedMinutes}分钟: 小时=$selectedHours, 分钟=$selectedMinutes');
                           }
                         },
                         childDelegate: ListWheelChildBuilderDelegate(
@@ -778,7 +780,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                             return Container(
                               alignment: Alignment.center,
                               child: Text(
-                                minutes == 0 ? '10秒' : '$minutes分钟',
+                                minutes == 0 ? '30秒' : '$minutes分钟',
                                 style: TextStyle(
                                   fontSize: 16,
                                   color: Colors.red[700],
@@ -815,6 +817,27 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 onPressed: () {
                   Navigator.pop(context);
                   
+                  // 检查是否是30秒模式，特殊处理
+                  if (selectedHours == 0 && selectedMinutes == 0) {
+                    print('准备启动30秒模式');
+                    // 直接启动番茄钟，不显示提示
+                    _pomodoroService.startPomodoro(0, 0, _userId);
+                    
+                    // 跳转到番茄钟页面
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => PomodoroTimerScreen(
+                          hours: 0,
+                          minutes: 0,
+                          userId: _userId,
+                          ),
+                      ),
+                    );
+                    return;
+                  }
+                  
+                  // 对于非30秒模式，检查是否选择了时间
                   if (selectedHours == 0 && selectedMinutes == 0) {
                     ScaffoldMessenger.of(context).showSnackBar(
                       const SnackBar(content: Text('请选择学习时长')),
@@ -833,7 +856,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         hours: selectedHours,
                         minutes: selectedMinutes,
                         userId: _userId,
-                      ),
+                        ),
                     ),
                   );
                 },

@@ -14,6 +14,7 @@ class Resource {
   final double rating;
   final String author;
   final String college;
+  final String url;
 
   Resource({
     required this.id,
@@ -29,6 +30,7 @@ class Resource {
     this.duration = '',
     this.viewCount = 0,
     this.rating = 0.0,
+    this.url = '',
   });
 
   // 添加从ParseObject转换为Resource的方法
@@ -47,6 +49,7 @@ class Resource {
       duration: parseObject.get<String>('duration') ?? '',
       viewCount: parseObject.get<int>('viewCount') ?? 0,
       rating: parseObject.get<double>('rating') ?? 0.0,
+      url: parseObject.get<String>('url') ?? '',
     );
   }
 }
@@ -62,6 +65,7 @@ final List<Resource> notes = [
     imageUrl: 'https://picsum.photos/200/300?random=1',
     author: '张老师',
     college: '创新工程学院',
+    url: 'https://hoyue.fun/data_structure/',
   ),
   Resource(
     id: '2',
@@ -72,6 +76,7 @@ final List<Resource> notes = [
     imageUrl: 'https://picsum.photos/200/300?random=2',
     author: '李老师',
     college: '创新工程学院',
+    url: 'https://oi-wiki.org/basic/complexity/',
   ),
   Resource(
     id: '3',
@@ -82,6 +87,7 @@ final List<Resource> notes = [
     imageUrl: 'https://picsum.photos/200/300?random=3',
     author: '王老师',
     college: '创新工程学院',
+    url: 'https://github.com/donnemartin/system-design-primer',
   ),
   Resource(
     id: '4',
@@ -92,6 +98,7 @@ final List<Resource> notes = [
     imageUrl: 'https://picsum.photos/200/300?random=4',
     author: '赵老师',
     college: '创新工程学院',
+    url: 'https://use-the-index-luke.com/',
   ),
   Resource(
     id: '5',
@@ -102,6 +109,7 @@ final List<Resource> notes = [
     imageUrl: 'https://picsum.photos/200/300?random=5',
     author: '孙老师',
     college: '创新工程学院',
+    url: 'https://zh-hans.react.dev/learn',
   ),
   Resource(
     id: '6',
@@ -112,6 +120,7 @@ final List<Resource> notes = [
     imageUrl: 'https://picsum.photos/200/300?random=6',
     author: '周老师',
     college: '创新工程学院',
+    url: 'https://spring.io/guides/gs/spring-boot/',
   ),
   Resource(
     id: '19',
@@ -122,6 +131,7 @@ final List<Resource> notes = [
     imageUrl: 'https://picsum.photos/200/300?random=19',
     author: '陈老师',
     college: '商学院',
+    url: 'https://www.accountingcoach.com/',
   ),
   Resource(
     id: '20',
@@ -132,6 +142,7 @@ final List<Resource> notes = [
     imageUrl: 'https://picsum.photos/200/300?random=20',
     author: '李老师',
     college: '商学院',
+    url: 'https://www.investopedia.com/financial-markets-4427788',
   ),
   Resource(
     id: '21',
@@ -142,6 +153,7 @@ final List<Resource> notes = [
     imageUrl: 'https://picsum.photos/200/300?random=21',
     author: '王老师',
     college: '国际学院',
+    url: 'https://www.wto.org/english/tratop_e/tratop_e.htm',
   ),
   Resource(
     id: '22',
@@ -152,6 +164,7 @@ final List<Resource> notes = [
     imageUrl: 'https://picsum.photos/200/300?random=22',
     author: '张老师',
     college: '国际学院',
+    url: 'https://owl.purdue.edu/owl/subject_specific_writing/professional_technical_writing/business_writing/index.html',
   ),
 ];
 
@@ -167,6 +180,7 @@ final List<Resource> videos = [
     duration: '45:30',
     author: '陈老师',
     college: '创新工程学院',
+    url: 'https://www.bilibili.com/video/BV1q4411H7iJ/',
   ),
   Resource(
     id: '8',
@@ -178,6 +192,7 @@ final List<Resource> videos = [
     duration: '32:15',
     author: '刘老师',
     college: '创新工程学院',
+    url: 'https://hoyue.fun/data_structure/',
   ),
   Resource(
     id: '9',
@@ -189,6 +204,7 @@ final List<Resource> videos = [
     duration: '28:45',
     author: '赵老师',
     college: '创新工程学院',
+    url: 'https://www.bilibili.com/video/BV1Kb4y1C7FG/',
   ),
   Resource(
     id: '10',
@@ -200,6 +216,7 @@ final List<Resource> videos = [
     duration: '35:20',
     author: '钱老师',
     college: '创新工程学院',
+    url: 'https://www.bilibili.com/video/BV1KW411u7vy/',
   ),
   Resource(
     id: '11',
@@ -211,6 +228,7 @@ final List<Resource> videos = [
     duration: '40:15',
     author: '孙老师',
     college: '创新工程学院',
+    url: 'https://www.bilibili.com/video/BV1XJ411X7Ud/',
   ),
   Resource(
     id: '12',
@@ -222,6 +240,7 @@ final List<Resource> videos = [
     duration: '38:30',
     author: '周老师',
     college: '创新工程学院',
+    url: 'https://www.bilibili.com/video/BV1bs411E7pD/',
   ),
   Resource(
     id: '23',
@@ -233,6 +252,7 @@ final List<Resource> videos = [
     duration: '45:00',
     author: '赵老师',
     college: '商学院',
+    url: 'https://www.bilibili.com/video/BV1Vt411N7Tj/',
   ),
   Resource(
     id: '24',
@@ -244,6 +264,7 @@ final List<Resource> videos = [
     duration: '38:20',
     author: '钱老师',
     college: '商学院',
+    url: 'https://www.bilibili.com/video/BV1GJ411x7h7/',
   ),
   Resource(
     id: '25',
@@ -255,6 +276,7 @@ final List<Resource> videos = [
     duration: '42:15',
     author: '孙老师',
     college: '国际学院',
+    url: 'https://www.bilibili.com/video/BV1Tb4y1D7Ss/',
   ),
   Resource(
     id: '26',
@@ -266,6 +288,7 @@ final List<Resource> videos = [
     duration: '35:40',
     author: '周老师',
     college: '国际学院',
+    url: 'https://www.bilibili.com/video/BV1Zt411G7Rd/',
   ),
 ];
 
@@ -280,6 +303,7 @@ final List<Resource> textbooks = [
     imageUrl: 'https://picsum.photos/200/300?random=13',
     author: '孙老师',
     college: '创新工程学院',
+    url: 'https://ocw.mit.edu/courses/6-006-introduction-to-algorithms-spring-2020/',
   ),
   Resource(
     id: '14',
@@ -290,6 +314,7 @@ final List<Resource> textbooks = [
     imageUrl: 'https://picsum.photos/200/300?random=14',
     author: '周老师',
     college: '创新工程学院',
+    url: 'https://hoyue.fun/data_structure/',
   ),
   Resource(
     id: '15',
@@ -300,6 +325,7 @@ final List<Resource> textbooks = [
     imageUrl: 'https://picsum.photos/200/300?random=15',
     author: '吴老师',
     college: '创新工程学院',
+    url: 'https://www.amazon.com/System-Design-Interview-Insiders-Guide/dp/1736049119',
   ),
   Resource(
     id: '16',
@@ -310,6 +336,7 @@ final List<Resource> textbooks = [
     imageUrl: 'https://picsum.photos/200/300?random=16',
     author: '郑老师',
     college: '创新工程学院',
+    url: 'https://www.db-book.com/',
   ),
   Resource(
     id: '17',
@@ -320,6 +347,7 @@ final List<Resource> textbooks = [
     imageUrl: 'https://picsum.photos/200/300?random=17',
     author: '冯老师',
     college: '创新工程学院',
+    url: 'https://developer.mozilla.org/zh-CN/docs/Learn',
   ),
   Resource(
     id: '18',
@@ -330,5 +358,6 @@ final List<Resource> textbooks = [
     imageUrl: 'https://picsum.photos/200/300?random=18',
     author: '蒋老师',
     college: '创新工程学院',
+    url: 'https://www.amazon.com/Effective-Java-Joshua-Bloch/dp/0134685997',
   ),
 ]; 

@@ -5,9 +5,20 @@ class QtagRepository {
   Future<void> createQtagItem(int questionId, List<String> tags) async {
     try {
       print('QtagRepository: 开始创建标签，问题ID: $questionId, 标签: $tags');
+      
+      // 处理可能的标签格式问题，确保没有#前缀
+      final List<String> processedTags = tags.map((tag) {
+        // 如果标签以#开头，移除#
+        return tag.startsWith('#') ? tag.substring(1) : tag;
+      }).toList();
+      
+      // 将标签列表转换为逗号分隔的字符串
+      final String tagsString = processedTags.join(',');
+      print('QtagRepository: 转换后的标签字符串: $tagsString');
+      
       final Qtag = ParseObject('Q_tags')
        ..set('q_id', questionId)
-       ..set('q_tags', tags);
+       ..set('q_tags', tagsString);  // 使用字符串而不是数组
       
       print('QtagRepository: 准备保存标签对象');
       final response = await Qtag.save();
@@ -58,11 +69,12 @@ class QtagRepository {
     
     if (response.success && response.results != null && response.results!.isNotEmpty) {
       final tagObj = response.results!.first as ParseObject;
-      final currentTags = tagObj.get<List>('q_tags') ?? [];
+      final String currentTagsString = tagObj.get<String>('q_tags') ?? '';
+      final List<String> currentTags = currentTagsString.isEmpty ? [] : currentTagsString.split(',');
       
       if (!currentTags.contains(newTag)) {
         currentTags.add(newTag);
-        tagObj.set('q_tags', currentTags);
+        tagObj.set('q_tags', currentTags.join(','));
         await tagObj.save();
       }
     } else {
@@ -92,16 +104,35 @@ class QtagRepository {
       return [];
     }
     
+    // 处理标签格式，移除可能的#前缀
+    final String processedTag = tag.startsWith('#') ? tag.substring(1) : tag;
+    
+    // 由于标签现在是存储为逗号分隔的字符串，需要使用模糊查询
     final query = QueryBuilder<ParseObject>(ParseObject('Q_tags'))
-      ..whereContainedIn('q_tags', [tag]);
+      ..whereContains('q_tags', processedTag);  // 使用包含查询而不是数组包含查询
     final response = await query.query();
     
     if (response.success && response.results != null) {
       final List<int> questionIds = [];
       for (var result in response.results!) {
-        final qId = result.get<int>('q_id');
-        if (qId != null && qId > 0) {
-          questionIds.add(qId);
+        // 验证这是否是一个精确匹配，避免子字符串匹配问题
+        final String tagString = result.get<String>('q_tags') ?? '';
+        final List<String> tags = tagString.split(',');
+        
+        bool matchFound = false;
+        for (var t in tags) {
+          final String processedT = t.startsWith('#') ? t.substring(1) : t;
+          if (processedT.toLowerCase() == processedTag.toLowerCase()) {
+            matchFound = true;
+            break;
+          }
+        }
+        
+        if (matchFound) {
+          final qId = result.get<int>('q_id');
+          if (qId != null && qId > 0) {
+            questionIds.add(qId);
+          }
         }
       }
       return questionIds;

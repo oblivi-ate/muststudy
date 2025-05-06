@@ -4,6 +4,31 @@ import 'dart:convert';
 
 class UserinfoRepository {
   static const String _userStatsCache = 'user_statistics';
+  static bool _initialized = false;
+  
+  // 确保SharedPreferences正确初始化
+  Future<bool> ensureInitialized() async {
+    if (_initialized) return true;
+    
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      print('SharedPreferences初始化成功');
+      _initialized = true;
+      
+      // 检查数据存储状态
+      final keys = prefs.getKeys();
+      print('当前存储的键值: $keys');
+      
+      // 检查用户统计数据键
+      final statsKeys = keys.where((key) => key.startsWith(_userStatsCache)).toList();
+      print('用户统计数据键: $statsKeys');
+      
+      return true;
+    } catch (e) {
+      print('SharedPreferences初始化失败: $e');
+      return false;
+    }
+  }
   
   Future<void> createUserinfoItem(int id, String name, String password) async {
     final userinfo = ParseObject('Userinfo')
@@ -69,10 +94,16 @@ class UserinfoRepository {
   // 获取用户统计数据
   Future<Map<String, dynamic>> getUserStatistics(int userId) async {
     try {
+      // 确保初始化
+      await ensureInitialized();
+      
       final prefs = await SharedPreferences.getInstance();
-      final data = prefs.getString('${_userStatsCache}_$userId');
+      final cacheKey = '${_userStatsCache}_$userId';
+      print('尝试读取用户统计数据，缓存键：$cacheKey');
+      final data = prefs.getString(cacheKey);
       
       if (data != null) {
+        print('找到用户统计数据：$data');
         return Map<String, dynamic>.from(json.decode(data));
       }
       
@@ -84,7 +115,9 @@ class UserinfoRepository {
         'achievements': 0,
       };
       
-      await prefs.setString('${_userStatsCache}_$userId', json.encode(defaultStats));
+      print('未找到用户数据，创建默认数据：$defaultStats');
+      // 确保同步写入
+      await prefs.setString(cacheKey, json.encode(defaultStats));
       return defaultStats;
     } catch (e) {
       print('获取用户统计失败: $e');
@@ -100,14 +133,22 @@ class UserinfoRepository {
   // 更新已解题目数量
   Future<bool> updateSolvedProblems(int userId, {int increment = 1}) async {
     try {
+      // 确保初始化
+      await ensureInitialized();
+      
       final prefs = await SharedPreferences.getInstance();
+      final cacheKey = '${_userStatsCache}_$userId';
       final stats = await getUserStatistics(userId);
       
       stats['solvedProblems'] = (stats['solvedProblems'] ?? 0) + increment;
       
-      await prefs.setString('${_userStatsCache}_$userId', json.encode(stats));
+      final success = await prefs.setString(cacheKey, json.encode(stats));
+      if (success) {
       print('更新已解题目数量成功，当前数量: ${stats['solvedProblems']}');
-      return true;
+      } else {
+        print('警告: 更新已解题目数量可能未成功保存');
+      }
+      return success;
     } catch (e) {
       print('更新已解题目数量失败: $e');
       return false;
@@ -142,14 +183,44 @@ class UserinfoRepository {
   // 更新学习时长
   Future<bool> updateStudyHours(int userId, double hours) async {
     try {
+      // 确保初始化
+      await ensureInitialized();
+      
+      // 如果传入的小时数为0或负数，直接返回成功但不更新
+      if (hours <= 0) {
+        print('更新学习时长：传入了无效的时长 $hours，不进行更新');
+        return true;
+      }
+
       final prefs = await SharedPreferences.getInstance();
+      final cacheKey = '${_userStatsCache}_$userId';
       final stats = await getUserStatistics(userId);
       
-      stats['studyHours'] = (stats['studyHours'] ?? 0) + hours;
+      // 转换为两位小数，避免过小的数值
+      final roundedHours = double.parse(hours.toStringAsFixed(2));
       
-      await prefs.setString('${_userStatsCache}_$userId', json.encode(stats));
-      print('更新学习时长成功，当前时长: ${stats['studyHours']}');
-      return true;
+      // 更新学习时长
+      double currentHours = (stats['studyHours'] ?? 0).toDouble();
+      stats['studyHours'] = currentHours + roundedHours;
+      
+      // 确保数据被同步写入
+      final success = await prefs.setString(cacheKey, json.encode(stats));
+      
+      if (success) {
+        print('更新学习时长成功，键：$cacheKey，当前时长: ${stats['studyHours']}，本次增加: $roundedHours');
+        // 额外检查是否写入成功
+        final verification = prefs.getString(cacheKey);
+        if (verification != null) {
+          final verifiedStats = json.decode(verification);
+          print('验证数据：studyHours = ${verifiedStats['studyHours']}');
+        } else {
+          print('警告：无法验证数据写入');
+        }
+      } else {
+        print('警告：数据可能未成功写入');
+      }
+      
+      return success;
     } catch (e) {
       print('更新学习时长失败: $e');
       return false;
@@ -159,14 +230,22 @@ class UserinfoRepository {
   // 更新成就数量
   Future<bool> updateAchievements(int userId, {int increment = 1}) async {
     try {
+      // 确保初始化
+      await ensureInitialized();
+      
       final prefs = await SharedPreferences.getInstance();
+      final cacheKey = '${_userStatsCache}_$userId';
       final stats = await getUserStatistics(userId);
       
       stats['achievements'] = (stats['achievements'] ?? 0) + increment;
       
-      await prefs.setString('${_userStatsCache}_$userId', json.encode(stats));
+      final success = await prefs.setString(cacheKey, json.encode(stats));
+      if (success) {
       print('更新成就数量成功，当前数量: ${stats['achievements']}');
-      return true;
+      } else {
+        print('警告: 更新成就数量可能未成功保存');
+      }
+      return success;
     } catch (e) {
       print('更新成就数量失败: $e');
       return false;

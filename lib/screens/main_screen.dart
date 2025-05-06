@@ -63,29 +63,29 @@ class _MainScreenState extends State<MainScreen> {
             ),
           ],
         ),
-        bottomNavigationBar: Container(
-          decoration: BoxDecoration(
-            color: Colors.white,
-            boxShadow: [
-              BoxShadow(
-                color: Colors.grey.withOpacity(0.2),
-                spreadRadius: 1,
-                blurRadius: 10,
-                offset: const Offset(0, -2),
-              ),
-            ],
-          ),
-          child: SafeArea(
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 8),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceAround,
-                children: [
-                  _buildNavItem(0, Icons.home_outlined, Icons.home, '首页'),
-                  _buildNavItem(1, Icons.emoji_events_outlined, Icons.emoji_events, '成就'),
-                  _buildNavItem(2, Icons.message_outlined, Icons.message, '消息'),
-                  _buildNavItem(3, Icons.person_outline, Icons.person, '我的'),
-                ],
+      bottomNavigationBar: Container(
+        decoration: BoxDecoration(
+          color: Colors.white,
+          boxShadow: [
+            BoxShadow(
+              color: Colors.grey.withOpacity(0.2),
+              spreadRadius: 1,
+              blurRadius: 10,
+              offset: const Offset(0, -2),
+            ),
+          ],
+        ),
+        child: SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 8),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceAround,
+              children: [
+                _buildNavItem(0, Icons.home_outlined, Icons.home, '首页'),
+                _buildNavItem(1, Icons.emoji_events_outlined, Icons.emoji_events, '成就'),
+                _buildNavItem(2, Icons.message_outlined, Icons.message, '消息'),
+                _buildNavItem(3, Icons.person_outline, Icons.person, '我的'),
+              ],
               ),
             ),
           ),

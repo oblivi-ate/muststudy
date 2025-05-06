@@ -40,6 +40,7 @@ class _LearningResourcesScreenState extends State<LearningResourcesScreen> {
       'college': '创新工程学院',
       'viewCount': 120,
       'rating': 4.5,
+      'url': 'https://hoyue.fun/data_structure/',
     },
     {
       'objectId': '2',
@@ -323,7 +324,7 @@ class _LearningResourcesScreenState extends State<LearningResourcesScreen> {
         DateTime.now().millisecondsSinceEpoch, 
         '数据结构与算法基础笔记', 
         '张老师的数据结构与算法基础课程笔记，适合初学者学习', 
-        'https://picsum.photos/200/300?random=1', 
+        'https://hoyue.fun/data_structure/', 
         '笔记', 
         1
       );

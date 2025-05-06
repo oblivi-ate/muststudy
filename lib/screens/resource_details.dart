@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../models/resource.dart';
 import '../theme/app_theme.dart';
 
@@ -7,6 +8,14 @@ class ResourceDetails extends StatelessWidget {
   final Resource resource;
 
   const ResourceDetails({Key? key, required this.resource}) : super(key: key);
+
+  // 打开URL的方法
+  Future<void> _launchUrl(String url) async {
+    final Uri uri = Uri.parse(url);
+    if (!await launchUrl(uri, mode: LaunchMode.externalApplication)) {
+      throw Exception('无法打开URL: $url');
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -181,7 +190,20 @@ class ResourceDetails extends StatelessWidget {
                           ),
                         ),
                         const SizedBox(height: 20),
-                        Container(
+                        GestureDetector(
+                          onTap: () {
+                            if (resource.url.isNotEmpty) {
+                              _launchUrl(resource.url);
+                            } else {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content: Text('该资源暂无学习链接'),
+                                  duration: Duration(seconds: 2),
+                                ),
+                              );
+                            }
+                          },
+                          child: Container(
                           width: double.infinity,
                           padding: const EdgeInsets.symmetric(vertical: 16),
                           decoration: BoxDecoration(
@@ -195,6 +217,7 @@ class ResourceDetails extends StatelessWidget {
                                 color: Colors.white,
                                 fontSize: 18,
                                 fontWeight: FontWeight.bold,
+                                ),
                               ),
                             ),
                           ),

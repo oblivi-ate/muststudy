@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:parse_server_sdk_flutter/parse_server_sdk_flutter.dart';
+import 'dart:async';  // 导入TimeoutException类
 import '../util/places.dart';
 import '../widgets/search_bar.dart';
 import 'resource_details.dart';
@@ -12,6 +13,7 @@ import '../repositories/Q_tag_respositories.dart';
 import '../repositories/Answer_respositories.dart';
 import 'package:muststudy/routes/app_router.dart';
 import '../repositories/Userinfo_respositories.dart';
+import '../examples/example_upload.dart';
 
 class ForumScreen extends StatefulWidget {
   const ForumScreen({Key? key}) : super(key: key);
@@ -183,11 +185,46 @@ class _ForumScreenState extends State<ForumScreen> {
 
     try {
       print('开始加载问题数据...');
-      await _loadQuestions();
       
-      // 如果没有数据，使用本地数据
-      if (_questions.isEmpty) {
-        _useLocalData();
+      // 设置超时，0.5秒后如果没有完成，直接使用本地数据
+      // 增加到0.5秒以确保有足够时间加载所有题目
+      bool isCompleted = false;
+      
+      // 启动一个定时器，如果加载时间过长则直接使用本地数据
+      Timer(const Duration(milliseconds: 500), () {
+        if (!isCompleted) {
+          print('加载超时，直接使用本地数据');
+          setState(() {
+            _useLocalData();
+            _isLoading = false;
+          });
+        }
+      });
+      
+      // 尝试加载数据
+      await _loadQuestions();
+      isCompleted = true;
+      
+      // 如果没有数据或数据数量少于预期，强制重新初始化并加载默认数据
+      if (_questions.isEmpty || _questions.length < 10) {
+        print('题目数量不足 (${_questions.length}), 加载默认数据');
+        await _questionRepository.initializeDefaultQuestions();
+        final defaultQuestions = await _questionRepository.fetchQuestions();
+        
+        // 合并已有题目和默认题目
+        final mergedQuestions = [..._questions];
+        for (var defaultQ in defaultQuestions) {
+          final defaultId = defaultQ.get<int>('q_id');
+          final exists = mergedQuestions.any((q) => q.get<int>('q_id') == defaultId);
+          if (!exists) {
+            mergedQuestions.add(defaultQ);
+          }
+        }
+        
+        setState(() {
+          _questions = mergedQuestions;
+          print('合并后共有 ${_questions.length} 个题目');
+        });
       }
     } catch (e) {
       print('加载问题数据失败: $e');
@@ -200,18 +237,19 @@ class _ForumScreenState extends State<ForumScreen> {
   }
 
   // 使用本地数据
-  void _useLocalData() {
-    print('使用本地数据作为备份');
-    setState(() {
-      _usingLocalData = true;
-      _questions = _localQuestions.map((data) {
-        final obj = ParseObject('Question');
-        data.forEach((key, value) {
-          obj.set(key, value);
-        });
-        return obj;
-      }).toList();
-    });
+  Future<void> _useLocalData() async {
+    try {
+      print('使用本地默认数据...');
+      await _questionRepository.initializeDefaultQuestions();
+      final defaultQuestions = await _questionRepository.fetchQuestions();
+      
+      setState(() {
+        _questions = defaultQuestions;
+        _usingLocalData = true;
+      });
+    } catch (e) {
+      print('加载默认数据失败: $e');
+    }
   }
 
   // 强制创建示例数据
@@ -269,33 +307,90 @@ class _ForumScreenState extends State<ForumScreen> {
 
   Future<void> _loadQuestions() async {
     try {
-      print('开始加载问题数据...');
-      // 设置超时
-      final timeout = Future.delayed(const Duration(milliseconds: 300));
-      
-      final questions = await Future.any([
-        _questionRepository.fetchQuestions(),
-        timeout,
-      ]);
-      
-      print('成功获取到${questions.length}个问题');
-      if (questions.isNotEmpty) {
-        for (var q in questions) {
-          print('问题ID: ${q.get<int>('q_id')}, 标题: ${q.get<String>('q_title')}');
+      print('开始加载问题...');
+      // 1. 首先从本地加载数据
+      print('从本地加载数据...');
+      final localQuestions = await _questionRepository.fetchQuestions();
+      print('从本地获取到${localQuestions.length}个问题');
+      if (localQuestions.isNotEmpty) {
+        for (var q in localQuestions) {
+          print('本地题目 - ID: ${q.get<int>('q_id')}, 标题: ${q.get<String>('q_title')}');
         }
+        
+        // 设置为从本地加载的题目
+        setState(() {
+          _questions = localQuestions;
+          _usingLocalData = false; // 这里设置false，因为我们是从本地存储中正常加载的
+        });
       } else {
-        print('没有获取到任何问题数据');
+        // 如果本地没有数据，初始化默认数据
+        print('本地无数据，初始化默认数据');
+        await _questionRepository.initializeDefaultQuestions();
+        // 重新从本地加载
+        final defaultQuestions = await _questionRepository.fetchQuestions();
+        setState(() {
+          _questions = defaultQuestions;
+          _usingLocalData = false;
+        });
       }
-      setState(() {
-        _questions = questions;
-        _usingLocalData = false;
-      });
+      
+      // 2. 然后尝试从Parse服务器获取，但失败时不抛出异常
+      try {
+        print('尝试从Parse服务器获取题目（超时设置为0.3秒）...');
+        // 创建一个超时的Future
+        final timeoutFuture = Future.delayed(const Duration(milliseconds: 300))
+            .then((_) => throw TimeoutException('获取Parse服务器数据超时（超过0.3秒）'));
+        
+        // 创建Parse查询
+        final queryBuilder = QueryBuilder<ParseObject>(ParseObject('Question'))
+          ..orderByDescending('createdAt')
+          ..setLimit(100); // 增加一次获取的数量
+        
+        // 使用Future.any竞争，谁先完成就用谁的结果
+        final response = await Future.any([
+          queryBuilder.query(),
+          timeoutFuture
+        ]);
+        
+        if (response.success && response.results != null && response.results!.isNotEmpty) {
+          print('从Parse服务器获取成功，共 ${response.results!.length} 条记录');
+          
+          // 如果服务器有数据，将其与本地数据合并
+          final serverQuestions = response.results!.cast<ParseObject>();
+          final mergedQuestions = [..._questions]; // 使用已加载的题目列表
+          
+          // 检查是否有新题目需要添加
+          for (var serverQ in serverQuestions) {
+            final serverId = serverQ.get<int>('q_id');
+            final exists = mergedQuestions.any((q) => q.get<int>('q_id') == serverId);
+            if (!exists) {
+              mergedQuestions.add(serverQ);
+            }
+          }
+          
+          setState(() {
+            _questions = mergedQuestions;
+            _usingLocalData = false;
+          });
+        }
+      } catch (serverError) {
+        print('从Parse服务器获取失败: $serverError');
+        // 服务器获取失败时不抛出异常，继续使用本地数据
+      }
+      
+      // 确保题目列表不为空
+      if (_questions.isEmpty) {
+        print('没有获取到任何问题数据，将使用默认数据');
+        await _useLocalData();
+      } else {
+        print('最终问题列表包含 ${_questions.length} 个问题');
+      }
     } catch (e) {
       print('加载问题失败: $e');
       setState(() {
         _errorMessage = '加载数据失败: $e';
       });
-      throw e; // 重新抛出异常，让上层函数处理
+      await _useLocalData();
     }
   }
 
@@ -324,15 +419,94 @@ class _ForumScreenState extends State<ForumScreen> {
     try {
       print('筛选问题，学院: $_selectedCollege, 标签: $_selectedCategory, 搜索: $_searchQuery');
       
-      // 使用新的filterQuestions方法
-      final filtered = await _questionRepository.filterQuestions(
-        college: _selectedCollege == '全部' ? null : _selectedCollege,
-        tag: _selectedCategory == '全部' ? null : _selectedCategory,
-        searchQuery: _searchQuery.isEmpty ? null : _searchQuery
-      );
+      // 如果问题列表为空，先尝试从本地加载
+      if (_questions.isEmpty) {
+        print('问题列表为空，尝试从本地加载...');
+        _questions = await _questionRepository.fetchQuestions();
+        if (_questions.isEmpty) {
+          print('本地也没有题目，使用默认数据');
+          _useLocalData();
+        } else {
+          print('从本地加载了 ${_questions.length} 个题目');
+        }
+      }
+      
+      // 在内存中筛选问题，而不是调用API
+      final List<ParseObject> filtered = _questions.where((q) {
+        // 学院筛选
+        if (_selectedCollege != '全部') {
+          final qCollege = q.get<String>('q_college') ?? '';
+          if (qCollege != _selectedCollege) {
+            return false;
+          }
+        }
+        
+        // 标签筛选
+        if (_selectedCategory != '全部') {
+          // 处理选择的标签，移除可能的#前缀
+          final String searchCategory = _selectedCategory.startsWith('#') ? 
+              _selectedCategory.substring(1) : _selectedCategory;
+          
+          // 获取题目标签 - 处理不同可能的格式
+          List<String> qTags = [];
+          final tagsValue = q.get('q_tags');
+          
+          if (tagsValue is List) {
+            // 直接是List类型
+            qTags = tagsValue.map((t) => t.toString()).toList();
+          } else if (tagsValue is String) {
+            // 字符串格式，尝试分割
+            qTags = tagsValue.split(',').map((tag) => tag.trim()).toList();
+          }
+          
+          print('题目: ${q.get<String>('q_title')}, 标签: $qTags, 查找: $searchCategory');
+          
+          // 检查标签是否包含所选分类（不区分大小写）
+          bool hasMatchingTag = false;
+          for (var tag in qTags) {
+            // 处理标签字符串，移除可能的#前缀
+            String processedTag = tag.toString();
+            if (processedTag.startsWith('#')) {
+              processedTag = processedTag.substring(1);
+            }
+            
+            // 不区分大小写比较
+            if (processedTag.toLowerCase() == searchCategory.toLowerCase()) {
+              hasMatchingTag = true;
+              break;
+            }
+          }
+          
+          if (!hasMatchingTag) {
+            return false;
+          }
+        }
+        
+        // 搜索关键字筛选
+        if (_searchQuery.isNotEmpty) {
+          final qTitle = q.get<String>('q_title')?.toLowerCase() ?? '';
+          final qDescription = q.get<String>('q_description')?.toLowerCase() ?? '';
+          final qInformation = q.get<String>('q_information')?.toLowerCase() ?? '';
+          
+          if (!qTitle.contains(_searchQuery.toLowerCase()) && 
+              !qDescription.contains(_searchQuery.toLowerCase()) && 
+              !qInformation.contains(_searchQuery.toLowerCase())) {
+            return false;
+          }
+        }
+        
+        return true;
+      }).toList();
       
       print('筛选结果: ${filtered.length}个问题');
-      print('标签: ${filtered.map((q) => q.get<List>('q_tags')).toList()}');
+      
+      // 对结果进行排序，默认按创建时间降序
+      filtered.sort((a, b) {
+        final aTime = a.createdAt ?? DateTime.now();
+        final bTime = b.createdAt ?? DateTime.now();
+        return bTime.compareTo(aTime); // 降序排列
+      });
+      
       return filtered;
     } catch (e) {
       print('筛选问题失败: $e');
@@ -635,6 +809,33 @@ class _ForumScreenState extends State<ForumScreen> {
                                       color: Colors.grey[800],
                                     ),
                                   ),
+                                  IconButton(
+                                    icon: const Icon(Icons.refresh),
+                                    tooltip: '刷新题目列表',
+                                    onPressed: () {
+                                      setState(() {
+                                        _isLoading = true;
+                                      });
+                                      
+                                      // 使用短超时
+                                      Future.delayed(const Duration(milliseconds: 100), () {
+                                        _loadQuestions().then((_) {
+                                          setState(() {
+                                            _isLoading = false;
+                                          });
+                                          
+                                          // 显示刷新成功提示
+                                          ScaffoldMessenger.of(context).showSnackBar(
+                                            const SnackBar(content: Text('题目列表已刷新')),
+                                          );
+                                        }).catchError((e) {
+                                          setState(() {
+                                            _isLoading = false;
+                                          });
+                                        });
+                                      });
+                                    },
+                                  ),
                                 ],
                               ),
                             ),
@@ -650,15 +851,87 @@ class _ForumScreenState extends State<ForumScreen> {
           ),
         ],
       ),
-      floatingActionButton: FloatingActionButton.extended(
-        heroTag: 'upload',
-        onPressed: () {
-          Navigator.pushNamed(context, RouteNames.uploadQuestions).then((_) {
-            _loadQuestions();
-          });
-        },
-        label: const Text('上传题目'),
-        icon: const Icon(Icons.add),
+      floatingActionButton: Column(
+        mainAxisAlignment: MainAxisAlignment.end,
+        children: [
+          FloatingActionButton.extended(
+            heroTag: 'upload_example',
+            onPressed: () async {
+              // 使用示例上传类上传一个示例题目
+              final exampleUploader = ExampleUpload();
+              await exampleUploader.uploadExampleQuestion(context);
+              
+              // 上传成功后刷新题目列表
+              setState(() {
+                _isLoading = true;
+              });
+              
+              // 直接从本地重新加载所有题目
+              try {
+                print('示例题目上传完成，从本地存储加载全部题目...');
+                final allQuestions = await _questionRepository.fetchQuestions();
+                
+                setState(() {
+                  _questions = allQuestions;
+                  _isLoading = false;
+                  print('重新加载了 ${_questions.length} 个题目');
+                });
+                
+                // 显示刷新成功提示
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('示例题目已上传，列表已更新')),
+                );
+              } catch (e) {
+                print('重新加载题目失败: $e');
+                setState(() {
+                  _isLoading = false;
+                });
+              }
+            },
+            label: const Text('上传示例题目'),
+            icon: const Icon(Icons.science),
+            backgroundColor: Colors.teal,
+          ),
+          const SizedBox(height: 16),
+          FloatingActionButton.extended(
+            heroTag: 'upload',
+            onPressed: () {
+              Navigator.pushNamed(context, RouteNames.uploadQuestions).then((_) {
+                // 强制刷新题目列表
+                setState(() {
+                  _isLoading = true;
+                });
+                
+                // 减少延迟时间
+                Future.delayed(const Duration(milliseconds: 200), () async {
+                  try {
+                    // 直接从本地存储重新加载所有题目
+                    print('上传完成，从本地存储加载全部题目...');
+                    final allQuestions = await _questionRepository.fetchQuestions();
+                    
+                    setState(() {
+                      _questions = allQuestions;
+                      _isLoading = false;
+                      print('重新加载了 ${_questions.length} 个题目');
+                    });
+                    
+                    // 显示刷新成功提示
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('题目上传成功，列表已更新')),
+                    );
+                  } catch (e) {
+                    print('重新加载题目失败: $e');
+                    setState(() {
+                      _isLoading = false;
+                    });
+                  }
+                });
+              });
+            },
+            label: const Text('上传题目'),
+            icon: const Icon(Icons.add),
+          ),
+        ],
       ),
     );
   }
@@ -684,6 +957,7 @@ class _ForumScreenState extends State<ForumScreen> {
                 onSelected: (selected) {
                   setState(() {
                     _selectedCategory = selected ? category : '全部';
+                    print('选择标签: $_selectedCategory');
                   });
                 },
               ),
@@ -740,6 +1014,16 @@ class _ForumScreenState extends State<ForumScreen> {
             final question = filteredQuestions[index];
             final questionId = question.get<int>('q_id') ?? 0;
             
+            // 获取标签进行显示
+            List<String> qTags = [];
+            final tagsValue = question.get('q_tags');
+            
+            if (tagsValue is List) {
+              qTags = tagsValue.map((t) => t.toString()).toList();
+            } else if (tagsValue is String) {
+              qTags = tagsValue.split(',').map((tag) => tag.trim()).toList();
+            }
+            
             return FutureBuilder<bool>(
               future: _isQuestionCompleted(questionId),
               builder: (context, completedSnapshot) {
@@ -768,10 +1052,28 @@ class _ForumScreenState extends State<ForumScreen> {
                             fontWeight: FontWeight.w600,
                           ),
                         ),
-                        subtitle: Text(
-                          question.get<String>('q_description') ?? '无描述',
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
+                        subtitle: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              question.get<String>('q_description') ?? '无描述',
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                            const SizedBox(height: 4),
+                            // 显示标签
+                            if (qTags.isNotEmpty)
+                              Wrap(
+                                spacing: 4,
+                                children: qTags.map((tag) => Chip(
+                                  label: Text(tag, style: const TextStyle(fontSize: 10)),
+                                  materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                                  visualDensity: VisualDensity.compact,
+                                  labelPadding: const EdgeInsets.symmetric(horizontal: 4, vertical: -2),
+                                  padding: EdgeInsets.zero,
+                                )).toList(),
+                              ),
+                          ],
                         ),
                         trailing: IconButton(
                           icon: Icon(
