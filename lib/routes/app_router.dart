@@ -20,6 +20,7 @@ import '../screens/ai_assistant_screen.dart';
 import 'package:muststudy/screens/forum_update_questions.dart';
 import 'package:muststudy/screens/study_record_screen.dart';
 import 'package:muststudy/screens/pomodoro_timer_screen.dart';
+import 'package:muststudy/screens/bookmarks_screen.dart';
 
 // 路由参数类
 class RouteArguments {
@@ -149,6 +150,8 @@ class AppRouter {
         return RouteTransitions.slideTransition(const ProfileScreen());
       case RouteNames.settings:
         return RouteTransitions.slideTransition(const SettingsScreen());
+      case RouteNames.favorites:
+        return RouteTransitions.slideTransition(const BookmarksScreen());
       case 'settings_userinfo':
         return RouteTransitions.slideTransition(const SettingsUserInfoScreen());
       case 'settings_language':

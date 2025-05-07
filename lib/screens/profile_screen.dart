@@ -8,6 +8,7 @@ import '../routes/app_router.dart';
 import 'dart:convert';
 import '../services/pomodoro_service.dart';
 import './pomodoro_timer_screen.dart';
+import './bookmarks_screen.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({Key? key}) : super(key: key);
@@ -527,9 +528,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
             title: '我的收藏',
             onTap: () {
               // 跳转到收藏页面
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('我的收藏功能即将上线')),
-              );
+              Navigator.pushNamed(context, RouteNames.favorites);
             },
           ),
           _buildDivider(),

@@ -105,7 +105,7 @@ class AchievementManager {
       icon: Icons.landscape,
       color: Colors.blue[700]!,
       isLocked: false,
-      currentProgress: 15,
+      currentProgress: 1,
       totalGoal: 30,
       description: '在学习资源中收藏优质内容',
       milestones: [
@@ -158,9 +158,13 @@ class AchievementManager {
       final achievementKey = 'achievement_${himalayaAchievementId}_$userId';
       final progress = prefs.getInt(achievementKey) ?? 0;
       
+      print('从SharedPreferences加载喜马拉雅收藏家成就进度 - 用户ID: $userId, 进度: $progress');
+      
       // 更新喜马拉雅收藏家成就进度
       for (int i = 0; i < achievements.length; i++) {
         if (achievements[i].title == '喜马拉雅收藏家') {
+          print('找到喜马拉雅收藏家成就，当前进度: ${achievements[i].currentProgress}, 更新为: $progress');
+          
           achievements[i] = Achievement(
             title: achievements[i].title,
             icon: achievements[i].icon,
@@ -175,6 +179,7 @@ class AchievementManager {
           // 如果当前选中的就是喜马拉雅收藏家成就，更新当前选中的成就
           if (_currentAchievement != null && _currentAchievement!.title == '喜马拉雅收藏家') {
             _currentAchievement = achievements[i];
+            print('同时更新当前选中的成就');
           }
           
           break;

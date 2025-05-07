@@ -289,6 +289,10 @@ class UserinfoRepository {
           bookmarksList.add(questionId);
           userBookmarks.set('bookmarkedQuestions', bookmarksList);
           final updateResponse = await userBookmarks.save();
+          
+          // 更新喜马拉雅收藏家成就
+          await _updateHimalayaCollectorAchievement(userId, bookmarksList.length);
+          
           return updateResponse.success;
         }
         return true; // 已经收藏了
@@ -298,6 +302,10 @@ class UserinfoRepository {
           ..set('userId', userId)
           ..set('bookmarkedQuestions', [questionId]);
         final createResponse = await userBookmarks.save();
+        
+        // 更新喜马拉雅收藏家成就
+        await _updateHimalayaCollectorAchievement(userId, 1);
+        
         return createResponse.success;
       }
     } catch (e) {
@@ -475,19 +483,26 @@ class UserinfoRepository {
       // 成就的总目标
       const totalGoal = 30;
       
+      // 获取当前资源收藏数量和题目收藏数量
+      final resourceBookmarks = await getUserResourceBookmarks(userId);
+      final questionBookmarks = await getUserBookmarks(userId);
+      
+      // 计算总的收藏数量
+      final totalBookmarksCount = resourceBookmarks.length + questionBookmarks.length;
+      
       // 获取当前成就进度
       final achievementKey = 'achievement_${himalayaAchievementId}_$userId';
       final currentProgress = prefs.getInt(achievementKey) ?? 0;
       
-      // 如果新的收藏数量大于当前记录的进度，更新进度
-      if (bookmarksCount > currentProgress) {
+      // 如果总的收藏数量大于当前记录的进度，更新进度
+      if (totalBookmarksCount > currentProgress) {
         // 更新进度，但不超过总目标
-        final newProgress = bookmarksCount < totalGoal ? bookmarksCount : totalGoal;
+        final newProgress = totalBookmarksCount < totalGoal ? totalBookmarksCount : totalGoal;
         
         // 保存新进度
         await prefs.setInt(achievementKey, newProgress);
         
-        print('喜马拉雅收藏家成就进度更新: $newProgress/$totalGoal');
+        print('喜马拉雅收藏家成就进度更新: $newProgress/$totalGoal (资源: ${resourceBookmarks.length}, 题目: ${questionBookmarks.length})');
         
         // 检查里程碑达成情况
         if (newProgress >= 10 && currentProgress < 10) {
@@ -508,5 +523,10 @@ class UserinfoRepository {
     } catch (e) {
       print('更新喜马拉雅收藏家成就进度失败: $e');
     }
+  }
+
+  // 同步喜马拉雅收藏家成就进度
+  Future<void> syncHimalayaCollectorAchievement(int userId) async {
+    await _updateHimalayaCollectorAchievement(userId, 0);
   }
 }

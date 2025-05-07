@@ -541,12 +541,6 @@ class _LearningResourcesScreenState extends State<LearningResourcesScreen> {
                                     color: Colors.grey[800],
                                   ),
                                 ),
-                                if (_usingLocalData)
-                                  Chip(
-                                    label: const Text('使用本地数据'),
-                                    backgroundColor: Colors.amber[100],
-                                    labelStyle: TextStyle(color: Colors.amber[900], fontSize: 12),
-                                  ),
                               ],
                             ),
                           ),
