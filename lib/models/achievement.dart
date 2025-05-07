@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:parse_server_sdk_flutter/parse_server_sdk_flutter.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class Achievement {
   final String title;
@@ -98,7 +99,7 @@ class AchievementManager {
   AchievementManager._internal();
 
   Achievement? _currentAchievement;
-  final List<Achievement> achievements = [
+  List<Achievement> achievements = [
     Achievement(
       title: '喜马拉雅收藏家',
       icon: Icons.landscape,
@@ -147,5 +148,40 @@ class AchievementManager {
 
   void setCurrentAchievement(Achievement achievement) {
     _currentAchievement = achievement;
+  }
+  
+  // 从SharedPreferences加载喜马拉雅收藏家成就进度
+  Future<void> loadHimalayaCollectorProgress(int userId) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final himalayaAchievementId = 'himalaya_collector';
+      final achievementKey = 'achievement_${himalayaAchievementId}_$userId';
+      final progress = prefs.getInt(achievementKey) ?? 0;
+      
+      // 更新喜马拉雅收藏家成就进度
+      for (int i = 0; i < achievements.length; i++) {
+        if (achievements[i].title == '喜马拉雅收藏家') {
+          achievements[i] = Achievement(
+            title: achievements[i].title,
+            icon: achievements[i].icon,
+            color: achievements[i].color,
+            isLocked: achievements[i].isLocked,
+            currentProgress: progress,  // 更新为从SharedPreferences读取的值
+            totalGoal: achievements[i].totalGoal,
+            description: achievements[i].description,
+            milestones: achievements[i].milestones,
+          );
+          
+          // 如果当前选中的就是喜马拉雅收藏家成就，更新当前选中的成就
+          if (_currentAchievement != null && _currentAchievement!.title == '喜马拉雅收藏家') {
+            _currentAchievement = achievements[i];
+          }
+          
+          break;
+        }
+      }
+    } catch (e) {
+      print('加载喜马拉雅收藏家成就进度失败: $e');
+    }
   }
 } 

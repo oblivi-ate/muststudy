@@ -1,13 +1,106 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../models/resource.dart';
 import '../theme/app_theme.dart';
+import '../repositories/Userinfo_respositories.dart';
 
-class ResourceDetails extends StatelessWidget {
+class ResourceDetails extends StatefulWidget {
   final Resource resource;
 
   const ResourceDetails({Key? key, required this.resource}) : super(key: key);
+
+  @override
+  State<ResourceDetails> createState() => _ResourceDetailsState();
+}
+
+class _ResourceDetailsState extends State<ResourceDetails> {
+  final UserinfoRepository _userinfoRepository = UserinfoRepository();
+  bool _isBookmarked = false;
+  bool _isLoading = true;
+  int _userId = 1;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadUserInfo();
+  }
+
+  Future<void> _loadUserInfo() async {
+    try {
+      // 获取当前用户ID
+      _userId = await _userinfoRepository.getUserId();
+      
+      // 检查资源是否已收藏
+      final isBookmarked = await _userinfoRepository.isResourceBookmarked(_userId, widget.resource.id);
+      
+      if (mounted) {
+        setState(() {
+          _isBookmarked = isBookmarked;
+          _isLoading = false;
+        });
+      }
+    } catch (e) {
+      print('加载用户信息失败: $e');
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
+    }
+  }
+
+  // 切换收藏状态
+  Future<void> _toggleBookmark() async {
+    if (_userId == 0) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('请先登录后再收藏资源')),
+      );
+      return;
+    }
+    
+    setState(() {
+      _isLoading = true;
+    });
+    
+    try {
+      bool success;
+      
+      if (_isBookmarked) {
+        // 取消收藏
+        success = await _userinfoRepository.unbookmarkResource(_userId, widget.resource.id);
+        if (success) {
+          setState(() {
+            _isBookmarked = false;
+          });
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('已取消收藏')),
+          );
+        }
+      } else {
+        // 添加收藏
+        success = await _userinfoRepository.bookmarkResource(_userId, widget.resource.id);
+        if (success) {
+          setState(() {
+            _isBookmarked = true;
+          });
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('已添加到收藏，喜马拉雅收藏家进度已更新')),
+          );
+        }
+      }
+    } catch (e) {
+      print('切换收藏状态失败: $e');
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('操作失败: $e')),
+      );
+    } finally {
+      setState(() {
+        _isLoading = false;
+      });
+    }
+  }
 
   // 打开URL的方法
   Future<void> _launchUrl(String url) async {
@@ -34,7 +127,7 @@ class ResourceDetails extends StatelessWidget {
           onPressed: () => Navigator.of(context).pop(),
         ),
         title: Text(
-          resource.title,
+          widget.resource.title,
           style: const TextStyle(
             color: Colors.black87,
             fontSize: 20,
@@ -46,10 +139,23 @@ class ResourceDetails extends StatelessWidget {
             icon: const Icon(Icons.share_outlined, color: Colors.black87),
             onPressed: () {},
           ),
-          IconButton(
-            icon: const Icon(Icons.bookmark_border_outlined, color: Colors.black87),
-            onPressed: () {},
-          ),
+          _isLoading
+          ? Container(
+              width: 48,
+              height: 48,
+              padding: const EdgeInsets.all(12),
+              child: const CircularProgressIndicator(
+                strokeWidth: 2,
+                valueColor: AlwaysStoppedAnimation<Color>(Colors.black87),
+              ),
+            )
+          : IconButton(
+              icon: Icon(
+                _isBookmarked ? Icons.bookmark : Icons.bookmark_border_outlined,
+                color: Colors.black87,
+              ),
+              onPressed: _toggleBookmark,
+            ),
         ],
       ),
       body: Stack(
@@ -68,7 +174,7 @@ class ResourceDetails extends StatelessWidget {
                     ClipRRect(
                       borderRadius: BorderRadius.circular(20),
                       child: Image.network(
-                        resource.imageUrl,
+                        widget.resource.imageUrl,
                         width: double.infinity,
                         height: 200,
                         fit: BoxFit.cover,
@@ -76,7 +182,7 @@ class ResourceDetails extends StatelessWidget {
                     ),
                     const SizedBox(height: 20),
                     Text(
-                      resource.title,
+                      widget.resource.title,
                       style: const TextStyle(
                         fontSize: 24,
                         fontWeight: FontWeight.bold,
@@ -89,7 +195,7 @@ class ResourceDetails extends StatelessWidget {
                         const Icon(Icons.person_outline, size: 20, color: Colors.black54),
                         const SizedBox(width: 8),
                         Text(
-                          resource.author,
+                          widget.resource.author,
                           style: const TextStyle(
                             fontSize: 16,
                             color: Colors.black54,
@@ -147,19 +253,19 @@ class ResourceDetails extends StatelessWidget {
                                       borderRadius: BorderRadius.circular(20),
                                     ),
                                     child: Text(
-                                      resource.category,
+                                      widget.resource.category,
                                       style: TextStyle(
                                         color: AppColors.primary,
                                         fontWeight: FontWeight.w500,
                                       ),
                                     ),
                                   ),
-                                  if (resource.duration.isNotEmpty) ...[
+                                  if (widget.resource.duration.isNotEmpty) ...[
                                     const SizedBox(width: 12),
                                     Icon(Icons.timer_outlined, size: 16, color: Colors.grey[600]),
                                     const SizedBox(width: 4),
                                     Text(
-                                      resource.duration,
+                                      widget.resource.duration,
                                       style: TextStyle(
                                         color: Colors.grey[600],
                                         fontSize: 14,
@@ -179,7 +285,7 @@ class ResourceDetails extends StatelessWidget {
                               ),
                               const SizedBox(height: 8),
                               Text(
-                                '这是一个示例简介文本，描述了这个学习资源的主要内容和特点。包括了课程大纲、学习目标、适合人群等信息。',
+                                widget.resource.description,
                                 style: TextStyle(
                                   fontSize: 16,
                                   color: Colors.grey[700],
@@ -190,37 +296,81 @@ class ResourceDetails extends StatelessWidget {
                           ),
                         ),
                         const SizedBox(height: 20),
-                        GestureDetector(
-                          onTap: () {
-                            if (resource.url.isNotEmpty) {
-                              _launchUrl(resource.url);
-                            } else {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(
-                                  content: Text('该资源暂无学习链接'),
-                                  duration: Duration(seconds: 2),
-                                ),
-                              );
-                            }
-                          },
-                          child: Container(
-                          width: double.infinity,
-                          padding: const EdgeInsets.symmetric(vertical: 16),
-                          decoration: BoxDecoration(
-                            color: AppColors.primary,
-                            borderRadius: BorderRadius.circular(20),
-                          ),
-                          child: const Center(
-                            child: Text(
-                              '开始学习',
-                              style: TextStyle(
-                                color: Colors.white,
-                                fontSize: 18,
-                                fontWeight: FontWeight.bold,
+                        Row(
+                          children: [
+                            Expanded(
+                              child: GestureDetector(
+                                onTap: _toggleBookmark,
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(vertical: 16),
+                                  decoration: BoxDecoration(
+                                    color: _isBookmarked ? Colors.grey[200] : AppColors.accent,
+                                    borderRadius: BorderRadius.circular(20),
+                                  ),
+                                  child: Row(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: [
+                                      Icon(
+                                        _isBookmarked ? Icons.bookmark : Icons.bookmark_border,
+                                        color: _isBookmarked ? Colors.black54 : Colors.white,
+                                      ),
+                                      const SizedBox(width: 8),
+                                      Text(
+                                        _isBookmarked ? '已收藏' : '收藏',
+                                        style: TextStyle(
+                                          color: _isBookmarked ? Colors.black54 : Colors.white,
+                                          fontSize: 16,
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
                                 ),
                               ),
                             ),
-                          ),
+                            const SizedBox(width: 16),
+                            Expanded(
+                              child: GestureDetector(
+                                onTap: () {
+                                  if (widget.resource.url.isNotEmpty) {
+                                    _launchUrl(widget.resource.url);
+                                  } else {
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      const SnackBar(
+                                        content: Text('该资源暂无学习链接'),
+                                        duration: Duration(seconds: 2),
+                                      ),
+                                    );
+                                  }
+                                },
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(vertical: 16),
+                                  decoration: BoxDecoration(
+                                    color: AppColors.primary,
+                                    borderRadius: BorderRadius.circular(20),
+                                  ),
+                                  child: const Row(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: [
+                                      Icon(
+                                        Icons.play_arrow,
+                                        color: Colors.white,
+                                      ),
+                                      SizedBox(width: 8),
+                                      Text(
+                                        '开始学习',
+                                        style: TextStyle(
+                                          color: Colors.white,
+                                          fontSize: 16,
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ],
                         ),
                       ],
                     ),

@@ -363,4 +363,150 @@ class UserinfoRepository {
       print('设置用户ID失败: $e');
     }
   }
+
+  // 添加收藏资源方法
+  Future<bool> bookmarkResource(int userId, String resourceId) async {
+    try {
+      final query = QueryBuilder<ParseObject>(ParseObject('UserResourceBookmarks'))
+        ..whereEqualTo('userId', userId);
+      final response = await query.query();
+      
+      if (response.success && response.results != null && response.results!.isNotEmpty) {
+        // 更新现有收藏
+        final userBookmarks = response.results!.first as ParseObject;
+        final bookmarksList = userBookmarks.get<List>('bookmarkedResources') ?? [];
+        
+        if (!bookmarksList.contains(resourceId)) {
+          bookmarksList.add(resourceId);
+          userBookmarks.set('bookmarkedResources', bookmarksList);
+          final updateResponse = await userBookmarks.save();
+          
+          // 更新喜马拉雅收藏家成就
+          await _updateHimalayaCollectorAchievement(userId, bookmarksList.length);
+          
+          return updateResponse.success;
+        }
+        return true; // 已经收藏了
+      } else {
+        // 创建新的收藏记录
+        final userBookmarks = ParseObject('UserResourceBookmarks')
+          ..set('userId', userId)
+          ..set('bookmarkedResources', [resourceId]);
+        final createResponse = await userBookmarks.save();
+        
+        // 更新喜马拉雅收藏家成就
+        await _updateHimalayaCollectorAchievement(userId, 1);
+        
+        return createResponse.success;
+      }
+    } catch (e) {
+      print('添加资源收藏失败: $e');
+      return false;
+    }
+  }
+  
+  // 取消收藏资源方法
+  Future<bool> unbookmarkResource(int userId, String resourceId) async {
+    try {
+      final query = QueryBuilder<ParseObject>(ParseObject('UserResourceBookmarks'))
+        ..whereEqualTo('userId', userId);
+      final response = await query.query();
+      
+      if (response.success && response.results != null && response.results!.isNotEmpty) {
+        final userBookmarks = response.results!.first as ParseObject;
+        final bookmarksList = userBookmarks.get<List>('bookmarkedResources') ?? [];
+        
+        if (bookmarksList.contains(resourceId)) {
+          bookmarksList.remove(resourceId);
+          userBookmarks.set('bookmarkedResources', bookmarksList);
+          final updateResponse = await userBookmarks.save();
+          return updateResponse.success;
+        }
+        return true; // 资源已经不在收藏列表中
+      }
+      return false;
+    } catch (e) {
+      print('取消资源收藏失败: $e');
+      return false;
+    }
+  }
+  
+  // 获取用户资源收藏列表
+  Future<List<String>> getUserResourceBookmarks(int userId) async {
+    try {
+      final query = QueryBuilder<ParseObject>(ParseObject('UserResourceBookmarks'))
+        ..whereEqualTo('userId', userId);
+      final response = await query.query();
+      
+      if (response.success && response.results != null && response.results!.isNotEmpty) {
+        final userBookmarks = response.results!.first as ParseObject;
+        final bookmarksList = userBookmarks.get<List>('bookmarkedResources');
+        if (bookmarksList != null) {
+          return List<String>.from(bookmarksList);
+        }
+      }
+      return [];
+    } catch (e) {
+      print('获取用户资源收藏失败: $e');
+      return [];
+    }
+  }
+  
+  // 检查资源是否已收藏
+  Future<bool> isResourceBookmarked(int userId, String resourceId) async {
+    try {
+      final bookmarks = await getUserResourceBookmarks(userId);
+      return bookmarks.contains(resourceId);
+    } catch (e) {
+      print('检查资源收藏状态失败: $e');
+      return false;
+    }
+  }
+  
+  // 更新喜马拉雅收藏家成就进度
+  Future<void> _updateHimalayaCollectorAchievement(int userId, int bookmarksCount) async {
+    try {
+      // 获取SharedPreferences实例
+      final prefs = await SharedPreferences.getInstance();
+      
+      // 喜马拉雅收藏家成就的ID (根据实际情况调整)
+      const himalayaAchievementId = 'himalaya_collector';
+      
+      // 成就的总目标
+      const totalGoal = 30;
+      
+      // 获取当前成就进度
+      final achievementKey = 'achievement_${himalayaAchievementId}_$userId';
+      final currentProgress = prefs.getInt(achievementKey) ?? 0;
+      
+      // 如果新的收藏数量大于当前记录的进度，更新进度
+      if (bookmarksCount > currentProgress) {
+        // 更新进度，但不超过总目标
+        final newProgress = bookmarksCount < totalGoal ? bookmarksCount : totalGoal;
+        
+        // 保存新进度
+        await prefs.setInt(achievementKey, newProgress);
+        
+        print('喜马拉雅收藏家成就进度更新: $newProgress/$totalGoal');
+        
+        // 检查里程碑达成情况
+        if (newProgress >= 10 && currentProgress < 10) {
+          print('达成里程碑: 第一个营地');
+          // 这里可以添加成就解锁通知逻辑
+        }
+        
+        if (newProgress >= 20 && currentProgress < 20) {
+          print('达成里程碑: 第二个营地');
+          // 这里可以添加成就解锁通知逻辑
+        }
+        
+        if (newProgress >= 30 && currentProgress < 30) {
+          print('达成里程碑: 山顶');
+          // 这里可以添加成就解锁通知逻辑
+        }
+      }
+    } catch (e) {
+      print('更新喜马拉雅收藏家成就进度失败: $e');
+    }
+  }
 }

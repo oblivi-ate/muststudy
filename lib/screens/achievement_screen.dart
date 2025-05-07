@@ -10,6 +10,7 @@ import '../repositories/Achievement_repository.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:parse_server_sdk_flutter/parse_server_sdk_flutter.dart';
 import '../widgets/app_footer.dart';
+import '../repositories/Userinfo_respositories.dart';
 
 class AchievementScreen extends StatefulWidget {
   const AchievementScreen({Key? key}) : super(key: key);
@@ -23,6 +24,7 @@ class _AchievementScreenState extends State<AchievementScreen> {
   List<Achievement> _achievements = [];
   Achievement? _currentAchievement;
   final AchievementManager _manager = AchievementManager();
+  final UserinfoRepository _userinfoRepository = UserinfoRepository();
 
   @override
   void initState() {
@@ -32,11 +34,17 @@ class _AchievementScreenState extends State<AchievementScreen> {
 
   Future<void> _loadAchievements() async {
     try {
+      // 获取当前用户ID
+      final prefs = await SharedPreferences.getInstance();
+      final userId = await _userinfoRepository.getUserId();
+      
+      // 先从SharedPreferences加载喜马拉雅收藏家成就的最新进度
+      await _manager.loadHimalayaCollectorProgress(userId);
+      
       // 设置超时
       final timeout = Future.delayed(const Duration(milliseconds: 300));
       
       // 从SharedPreferences获取当前登录的用户信息
-      final prefs = await SharedPreferences.getInstance();
       final username = prefs.getString('currentUsername') ?? '';
       
       if (username.isNotEmpty) {
