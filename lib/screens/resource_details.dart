@@ -304,7 +304,7 @@ class _ResourceDetailsState extends State<ResourceDetails> {
                                 child: Container(
                                   padding: const EdgeInsets.symmetric(vertical: 16),
                                   decoration: BoxDecoration(
-                                    color: _isBookmarked ? Colors.grey[200] : AppColors.accent,
+                                    color: _isBookmarked ? Colors.grey[200] : AppColors.secondary,
                                     borderRadius: BorderRadius.circular(20),
                                   ),
                                   child: Row(

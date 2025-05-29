@@ -30,11 +30,14 @@ class _ForumScreenState extends State<ForumScreen> {
   
   final QuestionRepository _questionRepository = QuestionRepository();
   final QtagRepository _qtagRepository = QtagRepository();
+  final UserinfoRepository _userinfoRepository = UserinfoRepository();
   List<ParseObject> _questions = [];
   List<ParseObject> _tags = [];
   bool _isLoading = true;
   String _errorMessage = '';
   bool _usingLocalData = false;
+  Map<int, bool> _bookmarkedQuestions = {}; // 存储每个问题的收藏状态
+  int _userId = 1; // 当前用户ID
 
   // 本地数据作为备份
   final List<Map<String, dynamic>> _localQuestions = [
@@ -166,8 +169,10 @@ class _ForumScreenState extends State<ForumScreen> {
       });
     });
     
-    // 直接加载问题
-    _loadQuestionsFromCache();
+    // 加载用户ID
+    _loadUserId();
+    
+    _loadTagsAndQuestions();
   }
 
   @override
@@ -176,8 +181,19 @@ class _ForumScreenState extends State<ForumScreen> {
     super.dispose();
   }
 
+  // 加载当前用户ID
+  Future<void> _loadUserId() async {
+    try {
+      _userId = await _userinfoRepository.getUserId();
+      print('加载当前用户ID: $_userId');
+    } catch (e) {
+      print('加载用户ID失败: $e');
+      _userId = 1; // 默认用户ID
+    }
+  }
+
   // 从缓存加载问题
-  Future<void> _loadQuestionsFromCache() async {
+  Future<void> _loadTagsAndQuestions() async {
     setState(() {
       _isLoading = true;
       _errorMessage = '';
@@ -567,6 +583,61 @@ class _ForumScreenState extends State<ForumScreen> {
     return await _questionRepository.isQuestionCompleted(qid, userId);
   }
 
+  // 检查问题是否已收藏
+  Future<bool> _isQuestionBookmarked(int questionId) async {
+    try {
+      // 如果已经有缓存结果，直接返回
+      if (_bookmarkedQuestions.containsKey(questionId)) {
+        return _bookmarkedQuestions[questionId]!;
+      }
+      
+      // 否则查询并缓存结果
+      final isBookmarked = await _userinfoRepository.isQuestionBookmarked(_userId, questionId);
+      _bookmarkedQuestions[questionId] = isBookmarked;
+      return isBookmarked;
+    } catch (e) {
+      print('检查问题收藏状态失败: $e');
+      return false;
+    }
+  }
+  
+  // 切换问题收藏状态
+  Future<void> _toggleQuestionBookmark(int questionId) async {
+    try {
+      final isBookmarked = await _isQuestionBookmarked(questionId);
+      
+      bool success;
+      if (isBookmarked) {
+        // 取消收藏
+        success = await _userinfoRepository.unbookmarkQuestion(_userId, questionId);
+        if (success) {
+          setState(() {
+            _bookmarkedQuestions[questionId] = false;
+          });
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('已取消收藏')),
+          );
+        }
+      } else {
+        // 添加收藏
+        success = await _userinfoRepository.bookmarkQuestion(_userId, questionId);
+        if (success) {
+          setState(() {
+            _bookmarkedQuestions[questionId] = true;
+          });
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('已添加到收藏')),
+          );
+        }
+      }
+    } catch (e) {
+      print('切换问题收藏状态失败: $e');
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('操作失败: $e')),
+      );
+    }
+  }
+
   // 构建评论列表
   Widget _buildComments(List<dynamic> comments, int questionId) {
     return FutureBuilder<int>(
@@ -785,7 +856,7 @@ class _ForumScreenState extends State<ForumScreen> {
                             ),
                             const SizedBox(height: 24),
                             ElevatedButton(
-                              onPressed: _loadQuestionsFromCache,
+                              onPressed: _loadTagsAndQuestions,
                               child: const Text('重试'),
                             ),
                           ],
@@ -840,7 +911,7 @@ class _ForumScreenState extends State<ForumScreen> {
                               ),
                             ),
                             const SizedBox(height: 16),
-                            _buildPopularProblems(),
+                            _buildQuestionsList(),
                             const SizedBox(height: 20),
                           ],
                         ),
@@ -968,7 +1039,8 @@ class _ForumScreenState extends State<ForumScreen> {
     );
   }
 
-  Widget _buildPopularProblems() {
+  // 构建问题列表
+  Widget _buildQuestionsList() {
     return FutureBuilder<List<ParseObject>>(
       future: _getFilteredQuestions(),
       builder: (context, snapshot) {
@@ -976,11 +1048,21 @@ class _ForumScreenState extends State<ForumScreen> {
           return const Center(child: CircularProgressIndicator());
         }
         
-        if (snapshot.hasError && !_usingLocalData) {
+        if (snapshot.hasError) {
           return Center(
-            child: Text(
-              '加载失败: ${snapshot.error}',
-              style: TextStyle(color: Colors.red[700]),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(Icons.error_outline, size: 72, color: Colors.red[300]),
+                const SizedBox(height: 16),
+                Text(
+                  '加载失败: ${snapshot.error}',
+                  style: TextStyle(
+                    color: Colors.red[700],
+                    fontSize: 16,
+                  ),
+                ),
+              ],
             ),
           );
         }
@@ -1029,28 +1111,42 @@ class _ForumScreenState extends State<ForumScreen> {
               builder: (context, completedSnapshot) {
                 final isCompleted = completedSnapshot.data ?? false;
                 
-                return Container(
-                  margin: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 8.0),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(20),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withOpacity(0.05),
-                        blurRadius: 10,
-                        offset: const Offset(0, 2),
+                return FutureBuilder<bool>(
+                  future: _isQuestionBookmarked(questionId),
+                  builder: (context, bookmarkSnapshot) {
+                    final isBookmarked = bookmarkSnapshot.data ?? false;
+                    
+                    return Card(
+                      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
                       ),
-                    ],
-                  ),
-                  child: Column(
-                    children: [
-                      ListTile(
-                        title: Text(
-                          question.get<String>('q_title') ?? '无标题',
-                          style: const TextStyle(
-                            fontSize: 16.0,
-                            fontWeight: FontWeight.w600,
-                          ),
+                      child: ListTile(
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                        title: Row(
+                          children: [
+                            Expanded(
+                              child: Text(
+                                question.get<String>('q_title') ?? '未知标题',
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            // 添加收藏按钮
+                            IconButton(
+                              icon: Icon(
+                                isBookmarked ? Icons.bookmark : Icons.bookmark_border,
+                                color: isBookmarked ? Colors.amber : Colors.grey,
+                                size: 22,
+                              ),
+                              onPressed: () => _toggleQuestionBookmark(questionId),
+                              padding: EdgeInsets.zero,
+                              constraints: const BoxConstraints(),
+                              tooltip: isBookmarked ? '取消收藏' : '收藏题目',
+                            ),
+                          ],
                         ),
                         subtitle: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
@@ -1088,11 +1184,16 @@ class _ForumScreenState extends State<ForumScreen> {
                             MaterialPageRoute(
                               builder: (context) => ProblemDetails(problem: question),
                             ),
-                          );
+                          ).then((_) {
+                            // 返回时刷新收藏状态
+                            setState(() {
+                              _bookmarkedQuestions.remove(questionId);
+                            });
+                          });
                         },
                       ),
-                    ],
-                  ),
+                    );
+                  },
                 );
               },
             );

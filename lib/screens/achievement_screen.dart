@@ -38,7 +38,11 @@ class _AchievementScreenState extends State<AchievementScreen> {
       final prefs = await SharedPreferences.getInstance();
       final userId = await _userinfoRepository.getUserId();
       
-      // 先从SharedPreferences加载喜马拉雅收藏家成就的最新进度
+      // 先同步喜马拉雅收藏家成就数据
+      await _userinfoRepository.syncHimalayaCollectorAchievement(userId);
+      print('已同步喜马拉雅收藏家成就数据');
+      
+      // 然后从SharedPreferences加载喜马拉雅收藏家成就的最新进度
       await _manager.loadHimalayaCollectorProgress(userId);
       
       // 设置超时

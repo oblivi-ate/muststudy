@@ -483,7 +483,7 @@ class UserinfoRepository {
       // 成就的总目标
       const totalGoal = 30;
       
-      // 获取当前资源收藏数量和题目收藏数量
+      // 获取当前资源收藏数量和题目收藏数量（总是重新获取最新数据）
       final resourceBookmarks = await getUserResourceBookmarks(userId);
       final questionBookmarks = await getUserBookmarks(userId);
       
@@ -494,8 +494,8 @@ class UserinfoRepository {
       final achievementKey = 'achievement_${himalayaAchievementId}_$userId';
       final currentProgress = prefs.getInt(achievementKey) ?? 0;
       
-      // 如果总的收藏数量大于当前记录的进度，更新进度
-      if (totalBookmarksCount > currentProgress) {
+      // 如果总的收藏数量与当前记录的进度不同，更新进度
+      if (totalBookmarksCount != currentProgress) {
         // 更新进度，但不超过总目标
         final newProgress = totalBookmarksCount < totalGoal ? totalBookmarksCount : totalGoal;
         
@@ -503,6 +503,8 @@ class UserinfoRepository {
         await prefs.setInt(achievementKey, newProgress);
         
         print('喜马拉雅收藏家成就进度更新: $newProgress/$totalGoal (资源: ${resourceBookmarks.length}, 题目: ${questionBookmarks.length})');
+        print('资源收藏ID列表: $resourceBookmarks');
+        print('题目收藏ID列表: $questionBookmarks');
         
         // 检查里程碑达成情况
         if (newProgress >= 10 && currentProgress < 10) {
@@ -527,6 +529,28 @@ class UserinfoRepository {
 
   // 同步喜马拉雅收藏家成就进度
   Future<void> syncHimalayaCollectorAchievement(int userId) async {
-    await _updateHimalayaCollectorAchievement(userId, 0);
+    try {
+      // 获取当前资源收藏数量和题目收藏数量
+      final resourceBookmarks = await getUserResourceBookmarks(userId);
+      final questionBookmarks = await getUserBookmarks(userId);
+      
+      // 计算总的收藏数量
+      final totalBookmarksCount = resourceBookmarks.length + questionBookmarks.length;
+      
+      print('同步喜马拉雅收藏家成就 - 用户ID: $userId');
+      print('资源收藏数量: ${resourceBookmarks.length}，收藏ID列表: $resourceBookmarks');
+      print('题目收藏数量: ${questionBookmarks.length}，收藏ID列表: $questionBookmarks');
+      print('总收藏数量: $totalBookmarksCount');
+      
+      // 重置成就进度
+      final prefs = await SharedPreferences.getInstance();
+      const himalayaAchievementId = 'himalaya_collector';
+      final achievementKey = 'achievement_${himalayaAchievementId}_$userId';
+      await prefs.setInt(achievementKey, totalBookmarksCount);
+      
+      print('已重置喜马拉雅收藏家成就进度为: $totalBookmarksCount');
+    } catch (e) {
+      print('同步喜马拉雅收藏家成就进度失败: $e');
+    }
   }
 }
